@@ -74,6 +74,10 @@ Pressing the same direction again while a cover is mid-travel sends a stop comma
 - Room climate module discovery queries `getState` individually per module index (0–8) rather than via `getIdentity`, because `getIdentity` returns an HTTP 500 for `masterRoomClimateModule` on current firmware.
 - The SOAP API does not report actual relay state for motor-driven cover channels — cover open/closed state is inferred (optimistic), not read back from hardware.
 
+## Disclaimer
+
+This integration is provided **as-is, without any warranty**. It controls real hardware — covers/blinds, lights, heating. Use it at your own risk. The author(s) accept **no responsibility or liability** for any damage, malfunction, incorrect behavior, data loss, or other issues arising from using this integration, whether it stops working, behaves unexpectedly, or never worked correctly for your setup in the first place. Test thoroughly in your own environment before relying on it for anything safety- or property-relevant.
+
 ## License
 
 MIT — see [LICENSE](LICENSE). Not affiliated with Innoxel.
