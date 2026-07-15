@@ -1,6 +1,5 @@
 {
   "name": "Innoxel Master 3",
   "render_readme": true,
-  "homeassistant": "2024.1.0",
-  "iot_class": "local_polling"
+  "homeassistant": "2024.1.0"
 }
