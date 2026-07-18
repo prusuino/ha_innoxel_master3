@@ -81,3 +81,9 @@ This integration is provided **as-is, without any warranty**. It controls real h
 ## License
 
 MIT — see [LICENSE](LICENSE). Not affiliated with Innoxel.
+
+## Support
+
+If this integration is useful to you, you can support its development:
+
+<a href="https://www.buymeacoffee.com/prusuino"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="41"></a>
