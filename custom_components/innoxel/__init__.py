@@ -223,7 +223,13 @@ class InnoxelCoordinator(DataUpdateCoordinator):
 
         el = mod.find("u:precipitation", ns)
         if el is not None:
-            weather["rain"] = el.get("value", "").lower() == "wet"
+            raw = (el.get("value") or "").strip().lower()
+            # Only "dry" has ever been observed live; the wet-side value was
+            # never captured. Treat anything else as rain and expose the raw
+            # value as a sensor attribute so the real wet-side value shows
+            # up the next time it rains.
+            weather["rain"] = raw not in ("", "dry")
+            weather["rain_raw"] = raw
 
         el = mod.find("u:state", ns)
         if el is not None:

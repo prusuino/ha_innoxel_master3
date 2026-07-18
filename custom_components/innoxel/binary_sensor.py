@@ -104,3 +104,12 @@ class InnoxelWeatherBinarySensor(CoordinatorEntity, BinarySensorEntity):
     def is_on(self) -> bool | None:
         weather = (self.coordinator.data or {}).get("weather", {})
         return weather.get(self._key)
+
+    @property
+    def extra_state_attributes(self):
+        if self._key != "rain":
+            return None
+        # Raw precipitation value from the station — the wet-side value has
+        # never been captured live, so this makes it visible for diagnosis.
+        weather = (self.coordinator.data or {}).get("weather", {})
+        return {"raw_value": weather.get("rain_raw")}
