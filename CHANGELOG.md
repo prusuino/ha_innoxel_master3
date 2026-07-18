@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1 — 2026-07-18
+
+- Fixed: the rain binary sensor could stay off during rain. The weather station's precipitation element had only ever been observed reporting `dry`; the wet-side value was assumed to be `wet` but had never been captured live. The sensor now treats anything other than `dry` as rain, and exposes the station's raw precipitation value as a `raw_value` attribute for diagnosis.
+
 ## 1.0.0 — 2026-07-15
 
 Initial public release.
