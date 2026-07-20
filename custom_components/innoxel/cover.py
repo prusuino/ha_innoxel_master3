@@ -68,6 +68,7 @@ class InnoxelCover(CoordinatorEntity, CoverEntity, RestoreEntity):
     def __init__(self, coordinator, client, entry_id,
                  mod_index, pair, ch_up, ch_down, description, in_up, in_down):
         super().__init__(coordinator)
+        self._attr_device_info = coordinator.device_info
         self._client = client
         self._mod_index = mod_index
         self._ch_up = ch_up

@@ -8,6 +8,7 @@ from xml.etree import ElementTree as ET
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, DeviceInfo, format_mac
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import DOMAIN, SCAN_INTERVAL, SOAP_NS
@@ -53,7 +54,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry.data[CONF_USERNAME],
         entry.data[CONF_PASSWORD],
     )
-    coordinator = InnoxelCoordinator(hass, client)
+    coordinator = InnoxelCoordinator(hass, client, entry.entry_id)
     await coordinator.async_config_entry_first_refresh()
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
         "coordinator": coordinator,
@@ -71,7 +72,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 class InnoxelCoordinator(DataUpdateCoordinator):
-    def __init__(self, hass: HomeAssistant, client: InnoxelSoapClient) -> None:
+    def __init__(self, hass: HomeAssistant, client: InnoxelSoapClient, entry_id: str) -> None:
         super().__init__(
             hass,
             _LOGGER,
@@ -79,6 +80,8 @@ class InnoxelCoordinator(DataUpdateCoordinator):
             update_interval=timedelta(seconds=SCAN_INTERVAL),
         )
         self.client = client
+        self.entry_id = entry_id
+        self.device_data: dict = {}
         self.module_info: dict = {}
         self.input_channel_map: dict = {}
         self.time_switch_modules: dict[int, str] = {}
@@ -122,7 +125,70 @@ class InnoxelCoordinator(DataUpdateCoordinator):
         except Exception as exc:
             raise UpdateFailed(f"Innoxel update failed: {exc}") from exc
 
+    @property
+    def device_info(self) -> DeviceInfo:
+        d = self.device_data
+        info = DeviceInfo(
+            identifiers={(DOMAIN, self.entry_id)},
+            name=d.get("friendly_name") or "INNOXEL Master 3",
+            manufacturer=d.get("manufacturer") or "ZidaTech AG",
+            model=d.get("model") or "INNOXEL Master 3",
+        )
+        if d.get("sw_version"):
+            info["sw_version"] = d["sw_version"]
+        if d.get("hw_version"):
+            info["hw_version"] = d["hw_version"]
+        if d.get("mac"):
+            info["connections"] = {(CONNECTION_NETWORK_MAC, format_mac(d["mac"]))}
+        if d.get("configuration_url"):
+            info["configuration_url"] = d["configuration_url"]
+        if d.get("uuid"):
+            info["serial_number"] = d["uuid"].removeprefix("uuid:")
+        return info
+
+    async def _load_device_data(self) -> None:
+        ns = {"u": SOAP_NS}
+        data: dict = {}
+        try:
+            root = ET.fromstring(await self.client.get_device_version_list())
+            resp = root.find(".//u:getDeviceVersionListResponse", ns)
+            if resp is not None:
+                host_fw = resp.findtext("u:hostFirmwareVersion", None, ns)
+                base_fw = resp.findtext("u:baseFirmwareVersion", None, ns)
+                if host_fw:
+                    data["sw_version"] = (
+                        f"{host_fw} (Base {base_fw})" if base_fw else host_fw
+                    )
+                hw = resp.findtext("u:baseHardwareVersion", None, ns)
+                if hw:
+                    data["hw_version"] = hw
+
+            root = ET.fromstring(await self.client.get_device_identity_list())
+            resp = root.find(".//u:getDeviceIdentityListResponse", ns)
+            if resp is not None:
+                for key, elem in (
+                    ("model",             "deviceModelName"),
+                    ("friendly_name",     "deviceModelFriendlyName"),
+                    ("manufacturer",      "deviceManufacturer"),
+                    ("mac",               "deviceMAC"),
+                    ("uuid",              "deviceUUID"),
+                    ("location",          "locationName"),
+                    ("location_details",  "locationDescription"),
+                ):
+                    val = resp.findtext(f"u:{elem}", None, ns)
+                    if val:
+                        data[key] = val.strip()
+        except Exception as exc:
+            # Device info is cosmetic — never block startup on it
+            _LOGGER.warning("Device version/identity fetch failed: %s", exc)
+
+        data["configuration_url"] = (
+            self.client._url.rsplit("/", 1)[0] + "/webhome.html"
+        )
+        self.device_data = data
+
     async def _load_identity(self) -> None:
+        await self._load_device_data()
         xml = await self.client.get_identity()
         root = ET.fromstring(xml)
         ns = {"u": SOAP_NS}

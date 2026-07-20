@@ -71,6 +71,7 @@ async def async_setup_entry(
 class InnoxelBinarySensor(CoordinatorEntity, BinarySensorEntity):
     def __init__(self, coordinator, entry_id, mod_index, channel, name):
         super().__init__(coordinator)
+        self._attr_device_info = coordinator.device_info
         self._mod_index = mod_index
         self._channel = channel
         self._attr_name = name
@@ -90,6 +91,7 @@ class InnoxelBinarySensor(CoordinatorEntity, BinarySensorEntity):
 class InnoxelRoomClimateValve(CoordinatorEntity, BinarySensorEntity):
     def __init__(self, coordinator, entry_id, idx, room_name):
         super().__init__(coordinator)
+        self._attr_device_info = coordinator.device_info
         self._idx = idx
         self._attr_name = f"{room_name} Ventil"
         self._attr_unique_id = f"innoxel_{entry_id}_rc_{idx}_valve"
@@ -110,6 +112,7 @@ class InnoxelSupplyBinarySensor(CoordinatorEntity, BinarySensorEntity):
 
     def __init__(self, coordinator, entry_id, data_key, name):
         super().__init__(coordinator)
+        self._attr_device_info = coordinator.device_info
         self._data_key = data_key
         self._attr_name = name
         self._attr_unique_id = f"innoxel_{entry_id}_diag_{data_key}"
@@ -132,6 +135,7 @@ class InnoxelSupplyBinarySensor(CoordinatorEntity, BinarySensorEntity):
 class InnoxelWeatherBinarySensor(CoordinatorEntity, BinarySensorEntity):
     def __init__(self, coordinator, entry_id, key, name, suffix, device_class, icon):
         super().__init__(coordinator)
+        self._attr_device_info = coordinator.device_info
         self._key = key
         self._attr_name = name
         self._attr_unique_id = f"innoxel_{entry_id}_weather_{key}"

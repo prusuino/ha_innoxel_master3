@@ -50,6 +50,7 @@ async def async_setup_entry(
         InnoxelDeviceSensor(coordinator, entry.entry_id, *row)
         for row in _DEVICE_SENSORS
     )
+    entities.append(InnoxelDeviceIdentitySensor(coordinator, entry.entry_id))
     async_add_entities(entities)
 
 
@@ -59,6 +60,7 @@ class InnoxelWeatherSensor(CoordinatorEntity, SensorEntity):
     def __init__(self, coordinator, entry_id, data_key, name, entity_suffix,
                  device_class, unit, icon):
         super().__init__(coordinator)
+        self._attr_device_info = coordinator.device_info
         self._data_key = data_key
         self._attr_name = name
         self._attr_unique_id = f"innoxel_{entry_id}_weather_{entity_suffix}"
@@ -79,6 +81,7 @@ class InnoxelDeviceSensor(CoordinatorEntity, SensorEntity):
 
     def __init__(self, coordinator, entry_id, data_key, name, device_class, unit, icon):
         super().__init__(coordinator)
+        self._attr_device_info = coordinator.device_info
         self._data_key = data_key
         self._attr_name = name
         self._attr_unique_id = f"innoxel_{entry_id}_diag_{data_key}"
@@ -100,6 +103,39 @@ class InnoxelDeviceSensor(CoordinatorEntity, SensorEntity):
         return status.get("serial_errors_detail")
 
 
+class InnoxelDeviceIdentitySensor(CoordinatorEntity, SensorEntity):
+    """Static identity data from getDeviceIdentityList (state = location name)."""
+
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:information-outline"
+
+    def __init__(self, coordinator, entry_id):
+        super().__init__(coordinator)
+        self._attr_device_info = coordinator.device_info
+        self._attr_name = "Diagnose Geräteinfo"
+        self._attr_unique_id = f"innoxel_{entry_id}_diag_device_identity"
+        self.entity_id = "sensor.innoxel_diag_device_identity"
+
+    @property
+    def native_value(self):
+        d = self.coordinator.device_data
+        return d.get("location") or d.get("model")
+
+    @property
+    def extra_state_attributes(self):
+        d = self.coordinator.device_data
+        return {
+            "modell": d.get("model"),
+            "hersteller": d.get("manufacturer"),
+            "mac": d.get("mac"),
+            "uuid": (d.get("uuid") or "").removeprefix("uuid:") or None,
+            "standort": d.get("location"),
+            "installation": d.get("location_details"),
+            "firmware": d.get("sw_version"),
+            "hardware": d.get("hw_version"),
+        }
+
+
 class InnoxelRoomClimateSensor(CoordinatorEntity, SensorEntity):
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_device_class = SensorDeviceClass.TEMPERATURE
@@ -107,6 +143,7 @@ class InnoxelRoomClimateSensor(CoordinatorEntity, SensorEntity):
 
     def __init__(self, coordinator, entry_id, idx, room_name, data_key, label):
         super().__init__(coordinator)
+        self._attr_device_info = coordinator.device_info
         self._idx = idx
         self._data_key = data_key
         self._attr_name = f"{room_name} {label}"

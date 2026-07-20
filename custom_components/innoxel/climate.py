@@ -41,6 +41,7 @@ class InnoxelRoomClimate(CoordinatorEntity, ClimateEntity):
 
     def __init__(self, coordinator, client, entry_id, idx, room_name):
         super().__init__(coordinator)
+        self._attr_device_info = coordinator.device_info
         self._idx = idx
         self._client = client
         self._attr_name = room_name

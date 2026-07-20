@@ -58,6 +58,8 @@ Pressing the same direction again while a cover is mid-travel sends a stop comma
 
 ## Setup
 
+Home Assistant discovers an Innoxel Master 3 on your network automatically (SSDP) and suggests setting it up — the host and port come pre-filled, you only add the credentials. Manual setup works too:
+
 1. Go to **Settings → Devices & Services → Add Integration**.
 2. Search for **"Innoxel Master 3"**.
 3. Enter:
@@ -65,6 +67,8 @@ Pressing the same direction again while a cover is mid-travel sends a stop comma
    - **Port** (default `5001`)
    - **Username** / **Password** — a user configured on the Innoxel Master 3 with SOAP access. Authentication is HTTP Digest, handled automatically.
 4. On success, all discovered entities are created immediately based on your existing Innoxel configuration.
+
+All entities are attached to a single **INNOXEL Master 3** device. Its device page groups them into Controls / Sensors / Diagnostic sections and shows the model, firmware and hardware versions, MAC address, serial number and a link to the master's web interface.
 
 ## Polling
 

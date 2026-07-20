@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.0 — 2026-07-21
+
+- Added: all entities are now attached to a device in the Home Assistant device registry ("INNOXEL Master 3"). The device page groups entities into Controls / Sensors / Diagnostic sections and shows manufacturer, model, firmware version (`getDeviceVersionList`), hardware version, MAC address, serial number (UPnP UUID) and a link to the master's web interface.
+- Added: SSDP auto-discovery. Home Assistant now discovers an Innoxel Master 3 on the network and suggests setting up the integration; the discovered host and port are pre-filled in the config flow. Already-configured hosts are not re-suggested.
+- Added: device identity diagnostic sensor (state = configured location name) exposing model, manufacturer, MAC, UUID, location, installation date and versions as attributes (`getDeviceIdentityList`).
+- Added: `translations/en.json` (English config flow texts) and discovery flow title.
+
 ## 1.1.0 — 2026-07-20
 
 - Added: hardware diagnostic entities for the Innoxel Master itself, read via the SOAP `getDeviceStateList` action (polled every 60 seconds; diagnostics failures never break the regular state updates). All entities use `entity_category: diagnostic`, so they appear in the Diagnostic section of the device page:

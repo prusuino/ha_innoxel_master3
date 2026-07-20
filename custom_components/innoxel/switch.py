@@ -53,6 +53,7 @@ async def async_setup_entry(
 class InnoxelSwitch(CoordinatorEntity, SwitchEntity):
     def __init__(self, coordinator, client, entry_id, mod_index, channel, ch_name):
         super().__init__(coordinator)
+        self._attr_device_info = coordinator.device_info
         self._client = client
         self._mod_index = mod_index
         self._channel = channel
@@ -79,6 +80,7 @@ class InnoxelSwitch(CoordinatorEntity, SwitchEntity):
 class InnoxelTimeSwitchSwitch(CoordinatorEntity, SwitchEntity):
     def __init__(self, coordinator, client, entry_id, index, name):
         super().__init__(coordinator)
+        self._attr_device_info = coordinator.device_info
         self._client = client
         self._index = index
         self._attr_name = name

@@ -127,6 +127,14 @@ class InnoxelSoapClient:
         """Master hardware diagnostics (voltages, CPU temps, bus supply states)."""
         return await self._post("getDeviceStateList", "")
 
+    async def get_device_version_list(self) -> str:
+        """Hardware/firmware/OS versions of the master."""
+        return await self._post("getDeviceVersionList", "")
+
+    async def get_device_identity_list(self) -> str:
+        """Model, MAC address, UUID and location of the master."""
+        return await self._post("getDeviceIdentityList", "")
+
     async def get_time_switch_state(self) -> str:
         body = (
             "<u:moduleList>"

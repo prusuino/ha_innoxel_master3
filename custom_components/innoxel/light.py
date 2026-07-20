@@ -42,6 +42,7 @@ class InnoxelLight(CoordinatorEntity, LightEntity):
 
     def __init__(self, coordinator, client, entry_id, mod_index, channel, description):
         super().__init__(coordinator)
+        self._attr_device_info = coordinator.device_info
         self._client = client
         self._mod_index = mod_index
         self._channel = channel

@@ -1,5 +1,6 @@
 {
   "config": {
+    "flow_title": "Innoxel Master 3 ({host})",
     "step": {
       "user": {
         "title": "Innoxel Master 3",
