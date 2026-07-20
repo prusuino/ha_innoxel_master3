@@ -83,6 +83,20 @@ This integration is provided **as-is, without any warranty**. It controls real h
 
 MIT — see [LICENSE](LICENSE). Not affiliated with Innoxel.
 
+## Related integrations
+
+More Home Assistant integrations from the same author:
+
+- [Swiss Charging Stations](https://github.com/prusuino/ha_swiss_charging_stations) — real-time availability and prices of public EV charging stations in Switzerland
+- [Austrian Charging Stations](https://github.com/prusuino/ha_austrian_charging_stations) — real-time availability of public EV charging stations in Austria
+- [Swiss Transport](https://github.com/prusuino/ha_swiss_transport) — live public-transport departure boards and saved connections
+- [Swiss Parking](https://github.com/prusuino/ha_swiss_parking) — live free parking spaces in Swiss cities
+- [Swiss Electricity Price](https://github.com/prusuino/ha_swiss_electricity_price) — electricity tariffs of any Swiss grid operator (ElCom)
+- [eug Electricity Price](https://github.com/prusuino/ha_swiss_eug_electricity_price) — electricity tariffs of eug Elektra Untergäu
+- [Swiss Solar Reference Price](https://github.com/prusuino/ha_swiss_solar_reference_price) — the Swiss solar reference market price (SFOE)
+- [Swiss Earthquakes](https://github.com/prusuino/ha_swiss_earthquakes) — recent Swiss earthquakes on the built-in map
+- [Swiss Avalanche Bulletin](https://github.com/prusuino/ha_swiss_avalanche_bulletin) — the official SLF avalanche bulletin for your location
+
 ## Support
 
 If this integration is useful to you, you can support its development:
