@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.2 — 2026-07-20
+
+- Fixed: the twilight binary sensor (`binary_sensor.*_weather_dawn`) was always off, so automations triggering on dusk never fired. The Innoxel controller reports the `isCivilTwilight` attribute as `yes`/`no`, but the parser compared it against `true`. Same bug class as the 1.0.1 rain fix — Innoxel SOAP boolean attributes are always `yes`/`no`.
+
 ## 1.0.1 — 2026-07-18
 
 - Fixed: the rain binary sensor could stay off during rain. The weather station's precipitation element had only ever been observed reporting `dry`; the wet-side value was assumed to be `wet` but had never been captured live. The sensor now treats anything other than `dry` as rain, and exposes the station's raw precipitation value as a `raw_value` attribute for diagnosis.

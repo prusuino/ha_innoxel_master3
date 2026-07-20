@@ -219,7 +219,8 @@ class InnoxelCoordinator(DataUpdateCoordinator):
                 weather["twilight_lux"] = float(el.get("value"))
             except (TypeError, ValueError):
                 pass
-            weather["civil_twilight"] = el.get("isCivilTwilight", "").lower() == "true"
+            # Innoxel reports boolean attributes as "yes"/"no", not "true"/"false"
+            weather["civil_twilight"] = el.get("isCivilTwilight", "").lower() in ("yes", "true")
 
         el = mod.find("u:precipitation", ns)
         if el is not None:
