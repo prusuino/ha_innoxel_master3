@@ -123,6 +123,10 @@ class InnoxelSoapClient:
                 pass
         return result
 
+    async def get_device_state(self) -> str:
+        """Master hardware diagnostics (voltages, CPU temps, bus supply states)."""
+        return await self._post("getDeviceStateList", "")
+
     async def get_time_switch_state(self) -> str:
         body = (
             "<u:moduleList>"

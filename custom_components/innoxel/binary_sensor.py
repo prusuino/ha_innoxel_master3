@@ -3,6 +3,7 @@ import logging
 
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass, BinarySensorEntity
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -52,7 +53,19 @@ async def async_setup_entry(
         InnoxelWeatherBinarySensor(coordinator, entry.entry_id, "civil_twilight", "Wetterstation Dämmerung", "dawn",   None,                             "mdi:weather-night"),
         InnoxelWeatherBinarySensor(coordinator, entry.entry_id, "sensor_error",   "Wetterstation Sensor Fehler", "sensor_error", BinarySensorDeviceClass.PROBLEM, "mdi:alert-circle"),
     ]
-    async_add_entities(entities + weather_entities)
+    # Bus supply state diagnostics (on = problem, i.e. anything but "OK")
+    supply_entities = [
+        InnoxelSupplyBinarySensor(coordinator, entry.entry_id, key, name)
+        for key, name in (
+            ("supply_can1",     "Diagnose CAN1 Versorgung"),
+            ("supply_can2",     "Diagnose CAN2 Versorgung"),
+            ("supply_com1_int", "Diagnose Com1 intern"),
+            ("supply_com2_int", "Diagnose Com2 intern"),
+            ("supply_com3_int", "Diagnose Com3 intern"),
+            ("supply_com3_ext", "Diagnose Com3 extern"),
+        )
+    ]
+    async_add_entities(entities + weather_entities + supply_entities)
 
 
 class InnoxelBinarySensor(CoordinatorEntity, BinarySensorEntity):
@@ -88,6 +101,32 @@ class InnoxelRoomClimateValve(CoordinatorEntity, BinarySensorEntity):
     def is_on(self) -> bool | None:
         rc = (self.coordinator.data or {}).get("roomclimate", {})
         return rc.get(self._idx, {}).get("valve_open")
+
+
+class InnoxelSupplyBinarySensor(CoordinatorEntity, BinarySensorEntity):
+    _attr_device_class = BinarySensorDeviceClass.PROBLEM
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:cable-data"
+
+    def __init__(self, coordinator, entry_id, data_key, name):
+        super().__init__(coordinator)
+        self._data_key = data_key
+        self._attr_name = name
+        self._attr_unique_id = f"innoxel_{entry_id}_diag_{data_key}"
+        self.entity_id = f"binary_sensor.innoxel_diag_{data_key}"
+
+    @property
+    def is_on(self) -> bool | None:
+        status = (self.coordinator.data or {}).get("devicestatus", {})
+        raw = status.get(self._data_key)
+        if raw is None:
+            return None
+        return raw != "OK"
+
+    @property
+    def extra_state_attributes(self):
+        status = (self.coordinator.data or {}).get("devicestatus", {})
+        return {"raw_state": status.get(self._data_key)}
 
 
 class InnoxelWeatherBinarySensor(CoordinatorEntity, BinarySensorEntity):

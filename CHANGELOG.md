@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.0 — 2026-07-20
+
+- Added: hardware diagnostic entities for the Innoxel Master itself, read via the SOAP `getDeviceStateList` action (polled every 60 seconds; diagnostics failures never break the regular state updates). All entities use `entity_category: diagnostic`, so they appear in the Diagnostic section of the device page:
+  - Sensors: main supply voltage, CPU voltage, backup battery voltage, key matrix voltage, base CPU temperature, host CPU temperature, uptime (days), and a serial error counter (sum of errors, CRC errors, and violations, with the individual counters as attributes)
+  - Binary sensors (problem class, on = not OK): CAN1/CAN2 bus supply, Com1–Com3 internal, Com3 external — each with the raw reported state as a `raw_state` attribute
+
 ## 1.0.2 — 2026-07-20
 
 - Fixed: the twilight binary sensor (`binary_sensor.*_weather_dawn`) was always off, so automations triggering on dusk never fired. The Innoxel controller reports the `isCivilTwilight` attribute as `yes`/`no`, but the parser compared it against `true`. Same bug class as the 1.0.1 rain fix — Innoxel SOAP boolean attributes are always `yes`/`no`.

@@ -16,6 +16,7 @@ from .soap_client import InnoxelSoapClient
 _LOGGER = logging.getLogger(__name__)
 PLATFORMS = ["binary_sensor", "climate", "cover", "light", "sensor", "switch"]
 _WEATHER_INTERVAL = 10.0  # seconds between weather/timeswitch updates
+_DEVICE_STATUS_INTERVAL = 60.0  # seconds between hardware diagnostics updates
 
 
 def _normalize_tokens(name: str) -> list[str]:
@@ -85,7 +86,9 @@ class InnoxelCoordinator(DataUpdateCoordinator):
         self._cached_weather: dict = {}
         self._cached_timeswitch: dict = {}
         self._cached_roomclimate: dict = {}
+        self._cached_devicestatus: dict = {}
         self._last_weather_update: float = 0.0
+        self._last_devicestatus_update: float = 0.0
 
     async def _async_update_data(self) -> dict:
         try:
@@ -103,9 +106,18 @@ class InnoxelCoordinator(DataUpdateCoordinator):
                     self._cached_roomclimate = await self.client.get_room_climate_state(
                         list(self.room_climate_modules.keys())
                     )
+            if now - self._last_devicestatus_update >= _DEVICE_STATUS_INTERVAL:
+                self._last_devicestatus_update = now
+                try:
+                    ds_xml = await self.client.get_device_state()
+                    self._cached_devicestatus = self._parse_device_status(ds_xml)
+                except Exception as exc:
+                    # Diagnostics are non-essential — never fail the whole update
+                    _LOGGER.warning("Device status update failed: %s", exc)
             state["weather"] = self._cached_weather
             state["timeswitch"] = self._cached_timeswitch
             state["roomclimate"] = self._cached_roomclimate
+            state["devicestatus"] = self._cached_devicestatus
             return state
         except Exception as exc:
             raise UpdateFailed(f"Innoxel update failed: {exc}") from exc
@@ -219,7 +231,6 @@ class InnoxelCoordinator(DataUpdateCoordinator):
                 weather["twilight_lux"] = float(el.get("value"))
             except (TypeError, ValueError):
                 pass
-            # Innoxel reports boolean attributes as "yes"/"no", not "true"/"false"
             weather["civil_twilight"] = el.get("isCivilTwilight", "").lower() in ("yes", "true")
 
         el = mod.find("u:precipitation", ns)
@@ -242,6 +253,70 @@ class InnoxelCoordinator(DataUpdateCoordinator):
                     weather["sensor_error"] = False
 
         return weather
+
+    @staticmethod
+    def _parse_device_status(xml: str) -> dict:
+        root = ET.fromstring(xml)
+        ns = {"u": SOAP_NS}
+        resp = root.find(".//u:getDeviceStateResponse", ns)
+        if resp is None:
+            return {}
+        status: dict = {}
+
+        for key, elem_name in (
+            ("voltage_main",      "baseVoltageMain"),
+            ("voltage_cpu",       "baseVoltageCPU"),
+            ("voltage_backup",    "baseVoltageBackup"),
+            ("voltage_keymatrix", "baseVoltageKeyMatrix"),
+            ("temp_cpu_base",     "baseTemperatureCPU"),
+            ("temp_cpu_host",     "hostTemperatureCPU"),
+        ):
+            el = resp.find(f"u:{elem_name}", ns)
+            if el is not None and el.text:
+                try:
+                    status[key] = float(el.text)
+                except ValueError:
+                    pass
+
+        for key, elem_name in (
+            ("supply_can1",     "baseSupplyStateCAN1"),
+            ("supply_can2",     "baseSupplyStateCAN2"),
+            ("supply_com1_int", "baseSupplyStateCom1Internal"),
+            ("supply_com2_int", "baseSupplyStateCom2Internal"),
+            ("supply_com3_int", "baseSupplyStateCom3Internal"),
+            ("supply_com3_ext", "baseSupplyStateCom3External"),
+        ):
+            el = resp.find(f"u:{elem_name}", ns)
+            if el is not None and el.text:
+                status[key] = el.text.strip()
+
+        el = resp.find("u:statisticsTotalRunTime", ns)
+        if el is not None and el.text:
+            # Format "D:hh:mm:ss.ffffff", e.g. "45:22:18:57.7340000"
+            try:
+                d, h, m, s = el.text.strip().split(":")
+                status["uptime_days"] = round(
+                    int(d) + int(h) / 24 + int(m) / 1440 + float(s) / 86400, 2
+                )
+            except ValueError:
+                pass
+
+        el = resp.find("u:statisticsSerialRx", ns)
+        if el is not None and el.text:
+            # e.g. "46441376, Errors 0, CRC Errors 0, Violations 0"
+            match = re.search(
+                r"Errors (\d+), CRC Errors (\d+), Violations (\d+)", el.text
+            )
+            if match:
+                errors, crc, violations = (int(g) for g in match.groups())
+                status["serial_errors"] = errors + crc + violations
+                status["serial_errors_detail"] = {
+                    "errors": errors,
+                    "crc_errors": crc,
+                    "violations": violations,
+                }
+
+        return status
 
     @staticmethod
     def _parse_time_switch_state(xml: str) -> dict:
