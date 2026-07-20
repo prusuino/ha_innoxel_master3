@@ -26,6 +26,7 @@ Protocol details were informed by the community reference project [matthsc/innox
 | `binary_sensor` (weather) | `masterWeatherModule` | Rain, civil twilight (dawn), sensor error |
 | `binary_sensor` | `masterOutModule` (module index ≥ 45, not switch/virtual) | Physical output status |
 | `climate` + `sensor` + `binary_sensor` | `masterRoomClimateModule` | Target/actual temperature, valve open state |
+| `sensor` + `binary_sensor` (diagnostics) | `getDeviceStateList` | Master hardware health: supply/CPU/backup-battery/key-matrix voltages, CPU temperatures, uptime, serial error counters, CAN/Com bus supply states (as problem sensors) |
 
 All entity names, room labels, and channel descriptions are read live from your own Innoxel controller via SOAP `getIdentity` at startup — **nothing is hardcoded**. Whatever you've named your channels in the Innoxel configuration is what shows up in Home Assistant.
 
@@ -69,6 +70,7 @@ Pressing the same direction again while a cover is mid-travel sends a stop comma
 
 - Output/dim module state: every second (fast enough for responsive UI feedback on physical button presses elsewhere in the house)
 - Weather station, time switches, room climate: every 10 seconds
+- Hardware diagnostics (`getDeviceStateList`): every 60 seconds; a failing diagnostics call never breaks the regular state updates
 
 ## Known limitations
 
