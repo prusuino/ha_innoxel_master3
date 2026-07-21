@@ -15,7 +15,7 @@ from .const import DOMAIN, SCAN_INTERVAL, SOAP_NS
 from .soap_client import InnoxelSoapClient
 
 _LOGGER = logging.getLogger(__name__)
-PLATFORMS = ["binary_sensor", "climate", "cover", "light", "sensor", "switch"]
+PLATFORMS = ["binary_sensor", "climate", "cover", "light", "number", "sensor", "switch"]
 _WEATHER_INTERVAL = 10.0  # seconds between weather/timeswitch updates
 _DEVICE_STATUS_INTERVAL = 60.0  # seconds between hardware diagnostics updates
 
@@ -61,6 +61,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "client": client,
     }
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    async def _options_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
+        # Cooling entities are created conditionally — reload to apply
+        await hass.config_entries.async_reload(entry.entry_id)
+
+    entry.async_on_unload(entry.add_update_listener(_options_updated))
     return True
 
 

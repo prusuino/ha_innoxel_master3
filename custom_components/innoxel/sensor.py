@@ -13,6 +13,7 @@ _WEATHER_SENSORS = [
     # (data_key, name, entity_suffix, device_class, unit, icon)
     ("temperature_air",  "Wetterstation Temperatur",          "temperature",       SensorDeviceClass.TEMPERATURE,   UnitOfTemperature.CELSIUS,           "mdi:thermometer"),
     ("temperature_felt", "Wetterstation Gefühlte Temperatur", "temperature_felt",  SensorDeviceClass.TEMPERATURE,   UnitOfTemperature.CELSIUS,           "mdi:thermometer-lines"),
+    # SOAP reports windSpeed in m/s (unit attribute in XML); HA converts the displayed state to km/h
     ("wind_ms",          "Wetterstation Wind",                "wind_ms",           SensorDeviceClass.WIND_SPEED,    UnitOfSpeed.METERS_PER_SECOND,       "mdi:weather-windy"),
     ("sun_east",         "Wetterstation Sonne Ost",           "sun_east",          SensorDeviceClass.ILLUMINANCE,   "lx",                                "mdi:weather-sunny"),
     ("sun_south",        "Wetterstation Sonne Süd",           "sun_south",         SensorDeviceClass.ILLUMINANCE,   "lx",                                "mdi:weather-sunny"),

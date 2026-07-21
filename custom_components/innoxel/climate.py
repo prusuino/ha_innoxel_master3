@@ -61,8 +61,16 @@ class InnoxelRoomClimate(CoordinatorEntity, ClimateEntity):
 
     @property
     def hvac_action(self) -> HVACAction:
-        valve = self._rc().get("valve_open")
-        return HVACAction.HEATING if valve else HVACAction.IDLE
+        # Prefer the firmware-reported operating state; fall back to the
+        # valve state for firmwares that do not report it.
+        operating = (self._rc().get("operating_state") or "").lower()
+        if operating == "heating":
+            return HVACAction.HEATING
+        if operating == "cooling":
+            return HVACAction.COOLING
+        if operating:
+            return HVACAction.IDLE
+        return HVACAction.HEATING if self._rc().get("valve_open") else HVACAction.IDLE
 
     async def async_set_temperature(self, **kwargs) -> None:
         temp = kwargs.get("temperature")

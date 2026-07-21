@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.3.0
+
+- Room climate: night setback and absence setback temperatures as adjustable
+  `number` entities per room
+- Room climate: optional cooling controls (cooling setpoint + cooling
+  setbacks) — off by default, enable during setup or later via the
+  integration's Configure dialog
+- Room climate: `hvac_action` now uses the firmware-reported operating state
+  (heating/cooling/idle) instead of deriving it from the valve
+- Room climate: thermostat alarm state as a diagnostic problem sensor per room
+- French and Italian translations for the config dialog
+
 ## 1.2.1
 
 - Refreshed brand icon set (new icons, dark logo variant) and README header image

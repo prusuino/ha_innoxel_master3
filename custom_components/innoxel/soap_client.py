@@ -89,16 +89,23 @@ class InnoxelSoapClient:
         from xml.etree import ElementTree as ET
         result: dict = {}
         ns = {"u": SOAP_NS}
+        fields = (
+            ("actual_temp", "actualTemperatureMean"),
+            ("set_temp", "setTemperatureHeating"),
+            ("set_temp_cooling", "setTemperatureCooling"),
+            ("night_setback_heating", "nightSetbackTemperatureHeating"),
+            ("night_setback_cooling", "nightSetbackTemperatureCooling"),
+            ("absence_setback_heating", "absenceSetbackTemperatureHeating"),
+            ("absence_setback_cooling", "absenceSetbackTemperatureCooling"),
+        )
         for i in indices:
             await asyncio.sleep(0.15)
             body = (
                 f'<u:moduleList>'
                 f'<u:module class="masterRoomClimateModule" index="{i}">'
                 "<u:thermostat>"
-                "<u:actualTemperatureMean/>"
-                "<u:setTemperatureHeating/>"
-                "<u:nightSetbackTemperatureHeating/>"
-                "</u:thermostat>"
+                + "".join(f"<u:{elem}/>" for _, elem in fields)
+                + "</u:thermostat>"
                 "</u:module>"
                 "</u:moduleList>"
             )
@@ -109,7 +116,7 @@ class InnoxelSoapClient:
                 if thermo is None:
                     continue
                 data: dict = {}
-                for key, elem in (("actual_temp", "actualTemperatureMean"), ("set_temp", "setTemperatureHeating")):
+                for key, elem in fields:
                     el = thermo.find(f"u:{elem}", ns)
                     if el is not None:
                         try:
@@ -118,6 +125,10 @@ class InnoxelSoapClient:
                             pass
                 valve = thermo.get("valveState", "")
                 data["valve_open"] = valve.lower() not in ("", "closed", "0", "false")
+                # "heating" / "cooling" / "" — firmware-reported action
+                data["operating_state"] = thermo.get("operatingState", "")
+                alarm = root.find(".//u:alarmState", ns)
+                data["alarm"] = (alarm.text or "").strip() if alarm is not None else ""
                 result[i] = data
             except Exception:
                 pass
@@ -144,11 +155,19 @@ class InnoxelSoapClient:
         return await self._post("getState", body)
 
     async def set_room_climate_temperature(self, index: int, temperature: float) -> None:
+        await self.set_room_climate_value(index, "setTemperatureHeating", temperature)
+
+    async def set_room_climate_value(self, index: int, field: str, temperature: float) -> None:
+        """Write one of the thermostat temperature fields (heating/cooling setpoints and setbacks)."""
+        from .const import RC_WRITABLE_FIELDS
+
+        if field not in RC_WRITABLE_FIELDS:
+            raise ValueError(f"Not a writable room climate field: {field}")
         body = (
             "<u:moduleList>"
             f'<u:module class="masterRoomClimateModule" index="{index}">'
             "<u:thermostat>"
-            f'<u:setTemperatureHeating value="{temperature:.1f}"/>'
+            f'<u:{field} value="{temperature:.1f}"/>'
             "</u:thermostat>"
             "</u:module>"
             "</u:moduleList>"

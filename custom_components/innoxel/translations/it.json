@@ -1,0 +1,36 @@
+{
+  "config": {
+    "flow_title": "Innoxel Master 3 ({host})",
+    "step": {
+      "user": {
+        "title": "Innoxel Master 3",
+        "description": "Connessione al tuo Innoxel Master 3",
+        "data": {
+          "host": "Indirizzo IP",
+          "port": "Porta",
+          "username": "Nome utente",
+          "password": "Password",
+          "enable_cooling": "Attiva i comandi di raffrescamento (solo se il tuo impianto raffredda attivamente)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Connessione non riuscita",
+      "invalid_auth": "Credenziali non valide",
+      "unknown": "Errore sconosciuto"
+    },
+    "abort": {
+      "already_configured": "Già configurato"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opzioni Innoxel Master 3",
+        "data": {
+          "enable_cooling": "Attiva i comandi di raffrescamento (solo se il tuo impianto raffredda attivamente)"
+        }
+      }
+    }
+  }
+}

@@ -9,7 +9,8 @@
           "host": "IP address",
           "port": "Port",
           "username": "Username",
-          "password": "Password"
+          "password": "Password",
+          "enable_cooling": "Enable cooling controls (only if your system actively cools)"
         }
       }
     },
@@ -20,6 +21,16 @@
     },
     "abort": {
       "already_configured": "Already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Innoxel Master 3 options",
+        "data": {
+          "enable_cooling": "Enable cooling controls (only if your system actively cools)"
+        }
+      }
     }
   }
 }

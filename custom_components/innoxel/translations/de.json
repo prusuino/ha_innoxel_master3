@@ -9,7 +9,8 @@
           "host": "IP-Adresse",
           "port": "Port",
           "username": "Benutzername",
-          "password": "Passwort"
+          "password": "Passwort",
+          "enable_cooling": "Kühlfunktionen aktivieren (nur wenn deine Anlage aktiv kühlt)"
         }
       }
     },
@@ -20,6 +21,16 @@
     },
     "abort": {
       "already_configured": "Bereits konfiguriert"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Innoxel Master 3 Optionen",
+        "data": {
+          "enable_cooling": "Kühlfunktionen aktivieren (nur wenn deine Anlage aktiv kühlt)"
+        }
+      }
     }
   }
 }

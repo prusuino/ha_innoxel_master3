@@ -43,9 +43,10 @@ async def async_setup_entry(
                 )
             )
 
-    # Room climate valve sensors
+    # Room climate valve and alarm sensors
     for idx, name in sorted(coordinator.room_climate_modules.items()):
         entities.append(InnoxelRoomClimateValve(coordinator, entry.entry_id, idx, name))
+        entities.append(InnoxelRoomClimateAlarm(coordinator, entry.entry_id, idx, name))
 
     # Weather binary sensors
     weather_entities = [
@@ -103,6 +104,37 @@ class InnoxelRoomClimateValve(CoordinatorEntity, BinarySensorEntity):
     def is_on(self) -> bool | None:
         rc = (self.coordinator.data or {}).get("roomclimate", {})
         return rc.get(self._idx, {}).get("valve_open")
+
+
+class InnoxelRoomClimateAlarm(CoordinatorEntity, BinarySensorEntity):
+    """Thermostat alarm state ("nothing" = OK, anything else = problem)."""
+
+    _attr_device_class = BinarySensorDeviceClass.PROBLEM
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:thermometer-alert"
+
+    def __init__(self, coordinator, entry_id, idx, room_name):
+        super().__init__(coordinator)
+        self._attr_device_info = coordinator.device_info
+        self._idx = idx
+        self._attr_name = f"{room_name} Alarm"
+        self._attr_unique_id = f"innoxel_{entry_id}_rc_{idx}_alarm"
+        self.entity_id = f"binary_sensor.innoxel_rc{idx:02d}_alarm"
+
+    def _alarm(self) -> str | None:
+        rc = (self.coordinator.data or {}).get("roomclimate", {})
+        return rc.get(self._idx, {}).get("alarm")
+
+    @property
+    def is_on(self) -> bool | None:
+        alarm = self._alarm()
+        if alarm is None:
+            return None
+        return alarm not in ("", "nothing")
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        return {"alarm_state": self._alarm()}
 
 
 class InnoxelSupplyBinarySensor(CoordinatorEntity, BinarySensorEntity):
