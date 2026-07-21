@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.1
+
+- Refreshed brand icon set (new icons, dark logo variant) and README header image
+
 ## 1.2.0 — 2026-07-21
 
 - Added: all entities are now attached to a device in the Home Assistant device registry ("INNOXEL Master 3"). The device page groups entities into Controls / Sensors / Diagnostic sections and shows manufacturer, model, firmware version (`getDeviceVersionList`), hardware version, MAC address, serial number (UPnP UUID) and a link to the master's web interface.
