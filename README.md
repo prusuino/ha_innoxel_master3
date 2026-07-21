@@ -101,6 +101,7 @@ More Home Assistant integrations from the same author:
 - [eug Electricity Price](https://github.com/prusuino/ha_swiss_eug_electricity_price) — electricity tariffs of eug Elektra Untergäu
 - [Swiss Solar Reference Price](https://github.com/prusuino/ha_swiss_solar_reference_price) — the Swiss solar reference market price (SFOE)
 - [Swiss Earthquakes](https://github.com/prusuino/ha_swiss_earthquakes) — recent Swiss earthquakes on the built-in map
+- [Swiss Public Alerts](https://github.com/prusuino/ha_swiss_public_alerts) — official Swiss public alerts (Alertswiss) with home-location matching
 - [Swiss Avalanche Bulletin](https://github.com/prusuino/ha_swiss_avalanche_bulletin) — the official SLF avalanche bulletin for your location
 
 ## Support
