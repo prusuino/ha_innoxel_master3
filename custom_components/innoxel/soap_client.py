@@ -76,7 +76,9 @@ class InnoxelSoapClient:
             modules.append(
                 f'<u:module class="masterBlindModule" index="{idx}"><u:channel index="-1"/></u:module>'
             )
-        body = "<u:moduleList>" + "".join(modules) + "</u:moduleList>"
+        # bootId changes whenever the master loads a new configuration —
+        # the coordinator uses it to reload the integration automatically.
+        body = "<u:bootId/><u:moduleList>" + "".join(modules) + "</u:moduleList>"
         return await self._post("getState", body)
 
     async def get_blind_identity(self) -> str:

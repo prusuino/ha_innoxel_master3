@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.4.1 — 2026-07-23
+
+- Automatic reload on configuration changes: the state poll now watches the
+  master's `bootId`, which changes whenever the master loads a new
+  configuration (e.g. an upload from the INNOXEL Setup software). The
+  integration then reloads itself once, so renamed, added, or removed
+  channels appear in Home Assistant without a manual reload. No reload is
+  triggered while the master is unreachable, and a guard prevents reload
+  loops.
+
 ## 1.4.0 — 2026-07-23
 
 - **Experimental:** support for INNOXEL Motor G2 modules (`masterBlindModule`,

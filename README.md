@@ -98,6 +98,8 @@ All entities are attached to a single **INNOXEL Master 3** device. Its device pa
 - Weather station, time switches, room climate: every 10 seconds
 - Hardware diagnostics (`getDeviceStateList`): every 60 seconds; a failing diagnostics call never breaks the regular state updates
 
+The state poll also watches the master's `bootId`, which changes whenever the master loads a new configuration (e.g. an upload from the INNOXEL Setup software). When that happens, the integration reloads itself once automatically, so renamed, added, or removed channels show up in Home Assistant without a manual reload. Registry entries of deleted channels remain and can be removed by hand. While the master is unreachable, no reload is triggered — entities just become unavailable until it returns.
+
 ## Known limitations
 
 - Room climate module discovery queries `getState` individually per module index (0–8) rather than via `getIdentity`, because `getIdentity` returns an HTTP 500 for `masterRoomClimateModule` on current firmware.

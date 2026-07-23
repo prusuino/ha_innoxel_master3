@@ -91,6 +91,9 @@ class InnoxelCoordinator(DataUpdateCoordinator):
         self.module_info: dict = {}
         self.input_channel_map: dict = {}
         self.blind_modules: dict[int, dict] = {}
+        # bootId of the master; changes when a new configuration is loaded
+        self._boot_id: str | None = None
+        self._reload_scheduled = False
         self.time_switch_modules: dict[int, str] = {}
         self.room_climate_modules: dict[int, str] = {}
         self._cached_weather: dict = {}
@@ -107,6 +110,7 @@ class InnoxelCoordinator(DataUpdateCoordinator):
             state = self._parse_state(
                 await self.client.get_state(blind_modules=list(self.blind_modules))
             )
+            self._check_boot_id(state.pop("boot_id", None))
             now = time.monotonic()
             if now - self._last_weather_update >= _WEATHER_INTERVAL:
                 self._last_weather_update = now
@@ -133,6 +137,29 @@ class InnoxelCoordinator(DataUpdateCoordinator):
             return state
         except Exception as exc:
             raise UpdateFailed(f"Innoxel update failed: {exc}") from exc
+
+    def _check_boot_id(self, boot_id: str | None) -> None:
+        """Reload the integration when the master loads a new configuration.
+
+        The bootId in every getState response changes whenever the Innoxel
+        master (re)loads its configuration — e.g. after an upload from the
+        Setup software. Reloading re-reads the identity, so renamed, added
+        or removed channels show up without a manual reload.
+        """
+        if not boot_id:
+            return
+        if self._boot_id is None:
+            self._boot_id = boot_id
+            return
+        if boot_id != self._boot_id and not self._reload_scheduled:
+            self._reload_scheduled = True
+            _LOGGER.info(
+                "Innoxel configuration changed (bootId %s -> %s), reloading integration",
+                self._boot_id, boot_id,
+            )
+            self.hass.async_create_task(
+                self.hass.config_entries.async_reload(self.entry_id)
+            )
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -441,6 +468,9 @@ class InnoxelCoordinator(DataUpdateCoordinator):
         root = ET.fromstring(xml)
         ns = {"u": SOAP_NS}
         state: dict = {}
+        boot_el = root.find(".//u:bootId", ns)
+        if boot_el is not None and boot_el.text:
+            state["boot_id"] = boot_el.text.strip()
         for mod in root.findall(".//u:module", ns):
             key = (mod.get("class"), int(mod.get("index")))
             channels: dict = {}
