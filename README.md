@@ -72,7 +72,7 @@ Home Assistant discovers an Innoxel Master 3 on your network automatically (SSDP
 3. Enter:
    - **IP address** of your Innoxel Master 3
    - **Port** (default `5001`)
-   - **Username** / **Password** — a user configured on the Innoxel Master 3 with SOAP access. Authentication is HTTP Digest, handled automatically.
+   - **Username** / **Password** — a user account configured on the Innoxel Master 3 itself. If you haven't created one yet, open the master's built-in web interface at `http://<innoxel-ip>:5001/maintenance/users.html` and add a user there — those are the credentials the integration needs. Authentication is HTTP Digest, handled automatically.
 4. On success, all discovered entities are created immediately based on your existing Innoxel configuration.
 
 All entities are attached to a single **INNOXEL Master 3** device. Its device page groups them into Controls / Sensors / Diagnostic sections and shows the model, firmware and hardware versions, MAC address, serial number and a link to the master's web interface.
