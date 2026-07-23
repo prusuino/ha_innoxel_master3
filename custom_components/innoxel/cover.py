@@ -56,6 +56,17 @@ async def async_setup_entry(
                     cover_base, in_up, in_down,
                 )
             )
+
+    # Motor G2 blind modules (masterBlindModule): native position/tilt support.
+    # EXPERIMENTAL — implemented from the Innoxel WebApp SOAP protocol without
+    # G2 hardware available; scale direction assumptions need field feedback.
+    for mod_index, info in sorted(coordinator.blind_modules.items()):
+        for ch_idx, ch_name in sorted(info["channels"].items()):
+            entities.append(
+                InnoxelBlindCover(
+                    coordinator, client, entry.entry_id, mod_index, ch_idx, ch_name
+                )
+            )
     async_add_entities(entities)
 
 
@@ -183,3 +194,101 @@ class InnoxelCover(CoordinatorEntity, CoverEntity, RestoreEntity):
     def _channels(self) -> dict:
         state = self.coordinator.data or {}
         return state.get(("masterOutModule", self._mod_index), {}).get("channels", {})
+
+
+class InnoxelBlindCover(CoordinatorEntity, CoverEntity):
+    """Motor G2 blind channel (masterBlindModule) with real position feedback.
+
+    Innoxel raw scale is 0-1000 for both position and tilt, -1 = position
+    unknown (e.g. after manual override, before the position tracker resynced).
+    Assumed direction (needs confirmation from G2 hardware): raw position 0 =
+    fully open (top end position), raw 1000 = fully closed. Tilt is mapped the
+    way the Innoxel WebApp displays it (raw 1000 = slider 0%).
+    """
+
+    _attr_device_class = CoverDeviceClass.BLIND
+    _attr_supported_features = (
+        CoverEntityFeature.OPEN
+        | CoverEntityFeature.CLOSE
+        | CoverEntityFeature.STOP
+        | CoverEntityFeature.SET_POSITION
+        | CoverEntityFeature.OPEN_TILT
+        | CoverEntityFeature.CLOSE_TILT
+        | CoverEntityFeature.STOP_TILT
+        | CoverEntityFeature.SET_TILT_POSITION
+    )
+
+    def __init__(self, coordinator, client, entry_id, mod_index, channel, name):
+        super().__init__(coordinator)
+        self._attr_device_info = coordinator.device_info
+        self._client = client
+        self._mod_index = mod_index
+        self._channel = channel
+        self._attr_name = f"[b{mod_index:02d}-{channel}] {name}"
+        self._attr_unique_id = f"innoxel_{entry_id}_blind_{mod_index}_{channel}"
+        self.entity_id = f"cover.innoxel_b{mod_index:02d}_{channel}"
+
+    def _raw(self) -> dict:
+        state = self.coordinator.data or {}
+        channels = state.get(("masterBlindModule", self._mod_index), {}).get("channels", {})
+        val = channels.get(self._channel)
+        return val if isinstance(val, dict) else {}
+
+    @property
+    def current_cover_position(self) -> int | None:
+        pos = self._raw().get("position", -1)
+        if pos < 0:
+            return None
+        return max(0, min(100, 100 - round(pos / 10)))
+
+    @property
+    def current_cover_tilt_position(self) -> int | None:
+        tilt = self._raw().get("tilt", -1)
+        if tilt < 0:
+            return None
+        return max(0, min(100, 100 - round(tilt / 10)))
+
+    @property
+    def is_closed(self) -> bool | None:
+        pos = self.current_cover_position
+        if pos is None:
+            return None
+        return pos == 0
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        raw = self._raw()
+        return {
+            "raw_position": raw.get("position"),
+            "raw_tilt": raw.get("tilt"),
+        }
+
+    async def async_open_cover(self, **kwargs) -> None:
+        await self._client.set_blind_position(self._mod_index, self._channel, position=0)
+
+    async def async_close_cover(self, **kwargs) -> None:
+        await self._client.set_blind_position(self._mod_index, self._channel, position=1000)
+
+    async def async_set_cover_position(self, **kwargs) -> None:
+        ha_pos = kwargs["position"]
+        await self._client.set_blind_position(
+            self._mod_index, self._channel, position=(100 - ha_pos) * 10
+        )
+
+    async def async_open_cover_tilt(self, **kwargs) -> None:
+        await self._client.set_blind_position(self._mod_index, self._channel, tilt=0)
+
+    async def async_close_cover_tilt(self, **kwargs) -> None:
+        await self._client.set_blind_position(self._mod_index, self._channel, tilt=1000)
+
+    async def async_set_cover_tilt_position(self, **kwargs) -> None:
+        ha_tilt = kwargs["tilt_position"]
+        await self._client.set_blind_position(
+            self._mod_index, self._channel, tilt=(100 - ha_tilt) * 10
+        )
+
+    async def async_stop_cover(self, **kwargs) -> None:
+        await self._client.halt_blind(self._mod_index, self._channel)
+
+    async def async_stop_cover_tilt(self, **kwargs) -> None:
+        await self._client.halt_blind(self._mod_index, self._channel)

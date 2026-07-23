@@ -90,6 +90,7 @@ class InnoxelCoordinator(DataUpdateCoordinator):
         self.device_data: dict = {}
         self.module_info: dict = {}
         self.input_channel_map: dict = {}
+        self.blind_modules: dict[int, dict] = {}
         self.time_switch_modules: dict[int, str] = {}
         self.room_climate_modules: dict[int, str] = {}
         self._cached_weather: dict = {}
@@ -103,7 +104,9 @@ class InnoxelCoordinator(DataUpdateCoordinator):
         try:
             if not self.module_info:
                 await self._load_identity()
-            state = self._parse_state(await self.client.get_state())
+            state = self._parse_state(
+                await self.client.get_state(blind_modules=list(self.blind_modules))
+            )
             now = time.monotonic()
             if now - self._last_weather_update >= _WEATHER_INTERVAL:
                 self._last_weather_update = now
@@ -258,7 +261,33 @@ class InnoxelCoordinator(DataUpdateCoordinator):
 
         self.input_channel_map = in_map
 
-        # Pass 3: room climate modules via getState (getIdentity returns HTTP 500 on this firmware)
+        # Pass 3: Motor G2 blind modules (masterBlindModule, firmware >= 1.5.1.0).
+        # Separate request: older firmware faults on the unknown module class,
+        # and installations without G2 hardware answer noxnetError 801.
+        try:
+            blind_root = ET.fromstring(await self.client.get_blind_identity())
+            for mod in blind_root.findall(".//u:module", ns):
+                if mod.get("class") != "masterBlindModule":
+                    continue
+                if mod.find("u:noxnetError", ns) is not None:
+                    continue  # 801 Module not found — no G2 modules installed
+                mod_idx = int(mod.get("index", -1))
+                if mod_idx < 0:
+                    continue
+                channels = {
+                    int(ch.get("index")): ch.get("name")
+                    for ch in mod.findall("u:channel", ns)
+                    if ch.get("name")
+                }
+                if channels:
+                    self.blind_modules[mod_idx] = {
+                        "name": mod.get("name", ""),
+                        "channels": channels,
+                    }
+        except Exception as exc:
+            _LOGGER.debug("Blind module discovery skipped: %s", exc)
+
+        # Pass 4: room climate modules via getState (getIdentity returns HTTP 500 on this firmware)
         try:
             rc_data = await self.client.get_room_climate_state(list(range(9)))
             for idx in rc_data:
@@ -267,9 +296,9 @@ class InnoxelCoordinator(DataUpdateCoordinator):
             _LOGGER.warning("RoomClimate discovery failed: %s", exc)
 
         _LOGGER.debug(
-            "Identity loaded: %d modules, %d timeswitches, %d covers matched, %d roomclimate",
+            "Identity loaded: %d modules, %d timeswitches, %d covers matched, %d roomclimate, %d blind",
             len(self.module_info), len(self.time_switch_modules), len(in_map),
-            len(self.room_climate_modules),
+            len(self.room_climate_modules), len(self.blind_modules),
         )
 
     @staticmethod
@@ -419,5 +448,16 @@ class InnoxelCoordinator(DataUpdateCoordinator):
                 out = ch.get("outState")
                 if out is not None:
                     channels[int(ch.get("index"))] = out
+                    continue
+                pos = ch.get("relativePosition")
+                if pos is not None:
+                    # Motor G2 blind channels: raw scale 0-1000, -1 = unknown
+                    try:
+                        channels[int(ch.get("index"))] = {
+                            "position": int(pos),
+                            "tilt": int(ch.get("relativeTilt", -1)),
+                        }
+                    except (TypeError, ValueError):
+                        pass
             state[key] = {"module_state": mod.get("state"), "channels": channels}
         return state

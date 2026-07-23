@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.4.0 — 2026-07-23
+
+- **Experimental:** support for INNOXEL Motor G2 modules (`masterBlindModule`,
+  firmware 1.5.1.0 or newer). Blinds driven by a Motor 4 x 230 VAC G2 /
+  Motor 4 x 24 VDC G2 get a cover entity with real position and slat-tilt
+  feedback from the module's built-in position tracker: set position, set tilt,
+  stop, and live readback (raw values exposed as attributes). Installations
+  without G2 hardware are unaffected — discovery is tolerant and simply creates
+  no entities.
+  **Note:** implemented from the INNOXEL WebApp SOAP protocol without G2
+  hardware available for testing. The position scale direction (0 = fully
+  open) is an assumption — feedback from Motor G2 owners is very welcome,
+  please open a GitHub issue.
+
 ## 1.3.0 — 2026-07-23
 
 - Options dialog (Configure): the connection settings — IP address, port,

@@ -66,14 +66,65 @@ class InnoxelSoapClient:
         )
         return await self._post("getIdentity", body)
 
-    async def get_state(self) -> str:
+    async def get_state(self, blind_modules: list[int] | None = None) -> str:
+        modules = [
+            '<u:module class="masterOutModule" index="-1"><u:channel index="-1"/></u:module>',
+            '<u:module class="masterDimModule" index="-1"><u:channel index="-1"/></u:module>',
+        ]
+        # Motor G2 blind modules (relativePosition/relativeTilt per channel)
+        for idx in blind_modules or ():
+            modules.append(
+                f'<u:module class="masterBlindModule" index="{idx}"><u:channel index="-1"/></u:module>'
+            )
+        body = "<u:moduleList>" + "".join(modules) + "</u:moduleList>"
+        return await self._post("getState", body)
+
+    async def get_blind_identity(self) -> str:
+        """Discover Motor G2 blind modules (masterBlindModule).
+
+        Kept separate from get_identity: firmware older than 1.5.1.0 does not
+        know the module class and would fault the whole batched request.
+        """
         body = (
             "<u:moduleList>"
-            '<u:module class="masterOutModule" index="-1"><u:channel index="-1"/></u:module>'
-            '<u:module class="masterDimModule" index="-1"><u:channel index="-1"/></u:module>'
+            '<u:module class="masterBlindModule" index="-1"><u:channel index="-1"/></u:module>'
             "</u:moduleList>"
         )
-        return await self._post("getState", body)
+        return await self._post("getIdentity", body)
+
+    async def set_blind_position(
+        self,
+        module_index: int,
+        channel_index: int,
+        position: int | None = None,
+        tilt: int | None = None,
+    ) -> None:
+        """Drive a Motor G2 blind channel to a position/tilt (Innoxel raw scale 0-1000).
+
+        -1 leaves the respective value unchanged (same convention the Innoxel
+        WebApp uses for the halt command).
+        """
+        pos = -1 if position is None else max(0, min(1000, int(position)))
+        tlt = -1 if tilt is None else max(0, min(1000, int(tilt)))
+        body = (
+            "<u:moduleList>"
+            f'<u:module class="masterBlindModule" index="{module_index}">'
+            f'<u:channel index="{channel_index}" class="masterBlindModuleChannel"'
+            f' command="autoPositionAndTilt" relativePosition="{pos}" relativeTilt="{tlt}"/>'
+            "</u:module></u:moduleList>"
+        )
+        await self._post("setState", body)
+
+    async def halt_blind(self, module_index: int, channel_index: int) -> None:
+        """Stop a moving Motor G2 blind channel."""
+        body = (
+            "<u:moduleList>"
+            f'<u:module class="masterBlindModule" index="{module_index}">'
+            f'<u:channel index="{channel_index}" class="masterBlindModuleChannel"'
+            f' command="halt" relativePosition="-1" relativeTilt="-1"/>'
+            "</u:module></u:moduleList>"
+        )
+        await self._post("setState", body)
 
     async def get_weather_state(self) -> str:
         body = (

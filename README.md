@@ -21,6 +21,7 @@ Protocol details were informed by the community reference project [matthsc/innox
 | Platform | Source | Notes |
 |---|---|---|
 | `cover` | `masterOutModule` with `"Motor"` in the description | Full-travel movement via matching virtual `masterInModule` channel (`autoImpulse`) when found; otherwise falls back to a short output pulse. See [Cover behavior](#cover-behavior) below. |
+| `cover` (Motor G2, **experimental**) | `masterBlindModule` | Blinds on INNOXEL Motor G2 modules with real position + slat-tilt feedback: set position, set tilt, stop. See [Motor G2 modules](#motor-g2-modules-experimental) below. |
 | `switch` | `masterOutModule` with `"Switch"` or `"Virtuell"` in the description | Toggle-based |
 | `switch` (time switch) | `masterTimeSwitchModule` | Enable/disable a schedule |
 | `light` | `masterDimModule` | Brightness only |
@@ -51,6 +52,18 @@ This integration always aims for full-travel behavior. On startup, it fuzzy-matc
 Pressing the same direction again while a cover is mid-travel sends a stop command (native Innoxel `autoImpulse` stop behavior). Cover state (`open`/`closed`/`unknown`) is optimistic — the SOAP API does not expose real relay state for motor channels — and reports `unknown` while within the expected travel-time window after a move command, so both open/close buttons stay available.
 
 **For a matching pair to be found, your OutModule and InModule channel names in the Innoxel configuration must correspond** — e.g. OutModule channel `"Kitchen Blind auf"` should have a same-named (or closely matching) pair of InModule channels.
+
+### Motor G2 modules (experimental)
+
+INNOXEL Motor 4 x 230 VAC G2 / Motor 4 x 24 VDC G2 modules (with INNOXEL Master 3 firmware 1.5.1.0 or newer) have a built-in position tracker, and the SOAP API exposes them as a separate `masterBlindModule` class. For each G2 blind channel the integration creates a cover entity with:
+
+- **Real position and slat-tilt readback** (`current_cover_position`, `current_cover_tilt_position`; the raw 0–1000 values are exposed as `raw_position` / `raw_tilt` attributes, `-1` meaning the tracker position is currently unknown)
+- **Set position / set tilt** — the blind drives to the requested position (`autoPositionAndTilt` command)
+- **Stop** (`halt` command)
+
+Discovery is tolerant: installations without G2 hardware (or with older firmware) simply get no such entities, nothing else changes.
+
+**This feature is experimental.** It was implemented from the INNOXEL WebApp SOAP protocol without G2 hardware available for testing. In particular the position scale direction (raw `0` = fully open) is an assumption. If you own Motor G2 modules, feedback is very welcome — please [open an issue](https://github.com/prusuino/ha_innoxel_master3/issues) and mention whether position, tilt, and direction behave correctly.
 
 ## Installation
 
