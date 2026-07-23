@@ -85,18 +85,57 @@ class InnoxelConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class InnoxelOptionsFlow(config_entries.OptionsFlow):
-    """Toggle cooling controls without re-adding the integration."""
+    """View/change connection settings and toggle cooling controls without re-adding."""
 
     async def async_step_init(self, user_input=None):
-        if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+        errors = {}
+        entry = self.config_entry
 
-        current = self.config_entry.options.get(
-            CONF_ENABLE_COOLING, self.config_entry.data.get(CONF_ENABLE_COOLING, False)
+        if user_input is not None:
+            connection = {
+                CONF_HOST: user_input[CONF_HOST],
+                CONF_PORT: user_input[CONF_PORT],
+                CONF_USERNAME: user_input[CONF_USERNAME],
+                CONF_PASSWORD: user_input[CONF_PASSWORD],
+            }
+            client = InnoxelSoapClient(
+                connection[CONF_HOST],
+                connection[CONF_PORT],
+                connection[CONF_USERNAME],
+                connection[CONF_PASSWORD],
+            )
+            try:
+                await client.get_identity()
+            except Exception:
+                errors["base"] = "cannot_connect"
+            finally:
+                await client.close()
+
+            if not errors:
+                if connection != {k: entry.data.get(k) for k in connection}:
+                    self.hass.config_entries.async_update_entry(
+                        entry, data={**entry.data, **connection}
+                    )
+                return self.async_create_entry(
+                    title="",
+                    data={CONF_ENABLE_COOLING: user_input[CONF_ENABLE_COOLING]},
+                )
+
+        source = user_input or entry.data
+        cooling = (
+            user_input[CONF_ENABLE_COOLING]
+            if user_input is not None
+            else entry.options.get(
+                CONF_ENABLE_COOLING, entry.data.get(CONF_ENABLE_COOLING, False)
+            )
         )
-        return self.async_show_form(
-            step_id="init",
-            data_schema=vol.Schema(
-                {vol.Optional(CONF_ENABLE_COOLING, default=current): bool}
-            ),
+        schema = vol.Schema(
+            {
+                vol.Required(CONF_HOST, default=source.get(CONF_HOST, "")): str,
+                vol.Optional(CONF_PORT, default=source.get(CONF_PORT, DEFAULT_PORT)): int,
+                vol.Required(CONF_USERNAME, default=source.get(CONF_USERNAME, "")): str,
+                vol.Required(CONF_PASSWORD, default=source.get(CONF_PASSWORD, "")): str,
+                vol.Optional(CONF_ENABLE_COOLING, default=cooling): bool,
+            }
         )
+        return self.async_show_form(step_id="init", data_schema=schema, errors=errors)

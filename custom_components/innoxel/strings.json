@@ -27,10 +27,18 @@
     "step": {
       "init": {
         "title": "Innoxel Master 3 options",
+        "description": "Connection settings of your Innoxel Master 3. Changes are verified against the device and applied immediately after saving.",
         "data": {
+          "host": "IP address",
+          "port": "Port",
+          "username": "Username",
+          "password": "Password",
           "enable_cooling": "Enable cooling controls (only if your system actively cools)"
         }
       }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect"
     }
   }
 }

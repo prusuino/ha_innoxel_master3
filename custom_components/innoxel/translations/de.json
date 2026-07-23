@@ -27,10 +27,18 @@
     "step": {
       "init": {
         "title": "Innoxel Master 3 Optionen",
+        "description": "Verbindungseinstellungen deines Innoxel Master 3. Änderungen werden gegen das Gerät geprüft und nach dem Speichern sofort übernommen.",
         "data": {
+          "host": "IP-Adresse",
+          "port": "Port",
+          "username": "Benutzername",
+          "password": "Passwort",
           "enable_cooling": "Kühlfunktionen aktivieren (nur wenn deine Anlage aktiv kühlt)"
         }
       }
+    },
+    "error": {
+      "cannot_connect": "Verbindung fehlgeschlagen"
     }
   }
 }

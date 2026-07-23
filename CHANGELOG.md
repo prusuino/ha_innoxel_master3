@@ -1,7 +1,12 @@
 # Changelog
 
-## 1.3.0
+## 1.3.0 — 2026-07-23
 
+- Options dialog (Configure): the connection settings — IP address, port,
+  username, password — are now shown pre-filled and can be viewed and changed
+  after setup, without removing and re-adding the integration. Changes are
+  verified against the device before being applied; the integration then
+  reloads automatically
 - Room climate: night setback and absence setback temperatures as adjustable
   `number` entities per room
 - Room climate: optional cooling controls (cooling setpoint + cooling
