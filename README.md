@@ -32,6 +32,8 @@ Protocol details were informed by the community reference project [matthsc/innox
 | `number` | `masterRoomClimateModule` | Adjustable night-setback and absence-setback temperatures per room; optional cooling setpoint and cooling setbacks (enable via the integration options if your system actively cools) |
 | `sensor` + `binary_sensor` (diagnostics) | `getDeviceStateList` | Master hardware health: supply/CPU/backup-battery/key-matrix voltages, CPU temperatures, uptime, serial error counters, CAN/Com bus supply states (as problem sensors) |
 
+**Note on the uptime sensor:** it reports the master's `statisticsTotalRunTime`, which counts operating time since the last complete power interruption (cold start). Warm restarts — e.g. a configuration upload from the INNOXEL Setup software — do **not** reset it, so it can show more days than the "runtime" visible in INNOXEL Setup after an upload. The SOAP protocol exposes no time-since-last-boot value.
+
 All entity names, room labels, and channel descriptions are read live from your own Innoxel controller via SOAP `getIdentity` at startup — **nothing is hardcoded**. Whatever you've named your channels in the Innoxel configuration is what shows up in Home Assistant.
 
 ## Options

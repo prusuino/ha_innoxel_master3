@@ -7,6 +7,10 @@
   decimal. The underlying states always carried full precision; Home
   Assistant's device-class defaults were rounding the displayed value to whole
   numbers.
+- Documented what the uptime sensor actually measures: the master's
+  `statisticsTotalRunTime` counts since the last complete power interruption
+  (cold start); warm restarts such as configuration uploads from INNOXEL Setup
+  do not reset it. The SOAP protocol exposes no time-since-last-boot value.
 
 ## 1.4.1 — 2026-07-23
 
