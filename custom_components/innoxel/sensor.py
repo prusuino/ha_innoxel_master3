@@ -22,15 +22,18 @@ _WEATHER_SENSORS = [
 ]
 
 _DEVICE_SENSORS = [
-    # (data_key, name, device_class, unit, icon)
-    ("voltage_main",      "Diagnose Speisung",                SensorDeviceClass.VOLTAGE,     UnitOfElectricPotential.VOLT, "mdi:flash"),
-    ("voltage_cpu",       "Diagnose Spannung CPU",            SensorDeviceClass.VOLTAGE,     UnitOfElectricPotential.VOLT, "mdi:chip"),
-    ("voltage_backup",    "Diagnose Spannung Backup-Batterie", SensorDeviceClass.VOLTAGE,    UnitOfElectricPotential.VOLT, "mdi:battery-heart-variant"),
-    ("voltage_keymatrix", "Diagnose Spannung Tastenmatrix",   SensorDeviceClass.VOLTAGE,     UnitOfElectricPotential.VOLT, "mdi:gesture-tap-button"),
-    ("temp_cpu_base",     "Diagnose Temperatur Basis-CPU",    SensorDeviceClass.TEMPERATURE, UnitOfTemperature.CELSIUS,    "mdi:thermometer"),
-    ("temp_cpu_host",     "Diagnose Temperatur Host-CPU",     SensorDeviceClass.TEMPERATURE, UnitOfTemperature.CELSIUS,    "mdi:thermometer-alert"),
-    ("uptime_days",       "Diagnose Uptime",                  SensorDeviceClass.DURATION,    UnitOfTime.DAYS,              "mdi:timer-outline"),
-    ("serial_errors",     "Diagnose CAN Serielle Fehler",     None,                          None,                         "mdi:alert-circle-check"),
+    # (data_key, name, device_class, unit, icon, display_precision)
+    # Without an explicit suggested_display_precision, HA's device-class
+    # defaults round voltages/durations to whole numbers in the UI (3 V
+    # instead of 3.12 V) even though the state carries full precision.
+    ("voltage_main",      "Diagnose Speisung",                SensorDeviceClass.VOLTAGE,     UnitOfElectricPotential.VOLT, "mdi:flash",                  2),
+    ("voltage_cpu",       "Diagnose Spannung CPU",            SensorDeviceClass.VOLTAGE,     UnitOfElectricPotential.VOLT, "mdi:chip",                   2),
+    ("voltage_backup",    "Diagnose Spannung Backup-Batterie", SensorDeviceClass.VOLTAGE,    UnitOfElectricPotential.VOLT, "mdi:battery-heart-variant",  2),
+    ("voltage_keymatrix", "Diagnose Spannung Tastenmatrix",   SensorDeviceClass.VOLTAGE,     UnitOfElectricPotential.VOLT, "mdi:gesture-tap-button",     2),
+    ("temp_cpu_base",     "Diagnose Temperatur Basis-CPU",    SensorDeviceClass.TEMPERATURE, UnitOfTemperature.CELSIUS,    "mdi:thermometer",            1),
+    ("temp_cpu_host",     "Diagnose Temperatur Host-CPU",     SensorDeviceClass.TEMPERATURE, UnitOfTemperature.CELSIUS,    "mdi:thermometer-alert",      1),
+    ("uptime_days",       "Diagnose Uptime",                  SensorDeviceClass.DURATION,    UnitOfTime.DAYS,              "mdi:timer-outline",          1),
+    ("serial_errors",     "Diagnose CAN Serielle Fehler",     None,                          None,                         "mdi:alert-circle-check",     0),
 ]
 
 
@@ -80,7 +83,7 @@ class InnoxelDeviceSensor(CoordinatorEntity, SensorEntity):
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_entity_category = EntityCategory.DIAGNOSTIC
 
-    def __init__(self, coordinator, entry_id, data_key, name, device_class, unit, icon):
+    def __init__(self, coordinator, entry_id, data_key, name, device_class, unit, icon, precision):
         super().__init__(coordinator)
         self._attr_device_info = coordinator.device_info
         self._data_key = data_key
@@ -90,6 +93,7 @@ class InnoxelDeviceSensor(CoordinatorEntity, SensorEntity):
         self._attr_device_class = device_class
         self._attr_native_unit_of_measurement = unit
         self._attr_icon = icon
+        self._attr_suggested_display_precision = precision
 
     @property
     def native_value(self):

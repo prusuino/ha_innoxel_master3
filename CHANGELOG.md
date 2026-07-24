@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.2 — 2026-07-24
+
+- Diagnostic sensors now display with proper precision: voltages with two
+  decimals (e.g. 3.12 V instead of 3 V), CPU temperatures and uptime with one
+  decimal. The underlying states always carried full precision; Home
+  Assistant's device-class defaults were rounding the displayed value to whole
+  numbers.
+
 ## 1.4.1 — 2026-07-23
 
 - Automatic reload on configuration changes: the state poll now watches the
