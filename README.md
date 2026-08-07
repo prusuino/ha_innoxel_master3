@@ -51,7 +51,7 @@ Innoxel distinguishes two ways to drive a motorized cover:
 
 This integration always aims for full-travel behavior. On startup, it fuzzy-matches each cover's OutModule channel name (e.g. `"Living Room Blind auf"`) against your InModule channel names to find the matching virtual input pair. If a confident match is found, `open_cover`/`close_cover` trigger `autoImpulse` on that virtual input. If no match is found, it falls back to a brief `set` + `clear` pulse on the OutModule channel (**not** `toggle` — a `toggle` on a motor channel leaves the relay permanently engaged, since motor channels always report `outState="off"` regardless of actual relay state).
 
-Pressing the same direction again while a cover is mid-travel sends a stop command (native Innoxel `autoImpulse` stop behavior). Cover state (`open`/`closed`/`unknown`) is optimistic — the SOAP API does not expose real relay state for motor channels — and reports `unknown` while within the expected travel-time window after a move command, so both open/close buttons stay available.
+Pressing the same direction again while a cover is mid-travel sends a stop command (native Innoxel `autoImpulse` stop behavior). Cover state is always `unknown` — the SOAP API exposes neither a position nor real relay state for motor channels, and any assumed state would go stale as soon as the cover is moved by its wall switch, a scene or an automation. As a result, both the open and the close button stay enabled at all times.
 
 **For a matching pair to be found, your OutModule and InModule channel names in the Innoxel configuration must correspond** — e.g. OutModule channel `"Kitchen Blind auf"` should have a same-named (or closely matching) pair of InModule channels.
 
@@ -105,7 +105,7 @@ The state poll also watches the master's `bootId`, which changes whenever the ma
 ## Known limitations
 
 - Room climate module discovery queries `getState` individually per module index (0–8) rather than via `getIdentity`, because `getIdentity` returns an HTTP 500 for `masterRoomClimateModule` on current firmware.
-- The SOAP API does not report actual relay state for motor-driven cover channels — cover open/closed state is inferred (optimistic), not read back from hardware.
+- The SOAP API does not report actual relay state for motor-driven cover channels — cover state is therefore always `unknown` (Motor G2 blinds excepted, which have real position feedback).
 
 ## Disclaimer
 
