@@ -5,10 +5,8 @@ import time
 
 from homeassistant.components.cover import CoverDeviceClass, CoverEntity, CoverEntityFeature
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import STATE_CLOSED, STATE_OPEN
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
@@ -70,7 +68,7 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class InnoxelCover(CoordinatorEntity, CoverEntity, RestoreEntity):
+class InnoxelCover(CoordinatorEntity, CoverEntity):
     _attr_device_class = CoverDeviceClass.SHUTTER
     _attr_supported_features = (
         CoverEntityFeature.OPEN | CoverEntityFeature.CLOSE
@@ -89,8 +87,6 @@ class InnoxelCover(CoordinatorEntity, CoverEntity, RestoreEntity):
         self._description = description
         self._attr_name = f"[o{mod_index:02d}-k{pair}] {description}"
         self._attr_unique_id = f"innoxel_{entry_id}_cover_{mod_index}_{pair}"
-        # Optimistic state: None=unknown, True=closed, False=open
-        self._assumed_closed: bool | None = None
         # Last direction commanded by HA ("up"/"down"), with its start timestamp.
         # Used as fallback in stop when the Innoxel SOAP API returns no relay state.
         # The Innoxel masterOutModule.outState is ALWAYS "off" for motor channels —
@@ -102,19 +98,20 @@ class InnoxelCover(CoordinatorEntity, CoverEntity, RestoreEntity):
     def extra_state_attributes(self) -> dict:
         return {"bezeichnung": self._description} if self._description else {}
 
-    async def async_added_to_hass(self) -> None:
-        await super().async_added_to_hass()
-        if (last_state := await self.async_get_last_state()) is not None:
-            if last_state.state == STATE_CLOSED:
-                self._assumed_closed = True
-            elif last_state.state == STATE_OPEN:
-                self._assumed_closed = False
-
     @property
     def is_closed(self) -> bool | None:
-        if self._within_move_timeout():
-            return None  # unknown while moving → both buttons stay active in the UI
-        return self._assumed_closed
+        # Always unknown. These covers are driven by relay pulses on a
+        # masterOutModule (or virtual masterInModule) channel — the Innoxel
+        # SOAP API exposes NO position and NO running relay state for motor
+        # channels (outState is always "off" there). Anything else would be
+        # a guess based on the last command sent, which goes stale as soon
+        # as the shutter is moved by its wall switch, a scene or the shading
+        # automation.
+        # Practical effect in the UI: open and close stay enabled at all
+        # times. Home Assistant greys out the button matching the assumed
+        # end position, so a guessed state left one direction unreachable
+        # until the other was pressed.
+        return None
 
     def _within_move_timeout(self) -> bool:
         return (
@@ -144,10 +141,8 @@ class InnoxelCover(CoordinatorEntity, CoverEntity, RestoreEntity):
             await self._pulse_up()
             self._last_direction = None
             self._last_move_ts = 0.0
-            self._assumed_closed = None  # unknown after stop → both buttons stay active
         else:
             await self._pulse_up()
-            self._assumed_closed = False
             self._last_direction = "up"
             self._last_move_ts = time.monotonic()
         self.async_write_ha_state()
@@ -158,10 +153,8 @@ class InnoxelCover(CoordinatorEntity, CoverEntity, RestoreEntity):
             await self._pulse_down()
             self._last_direction = None
             self._last_move_ts = 0.0
-            self._assumed_closed = None  # unknown after stop → both buttons stay active
         else:
             await self._pulse_down()
-            self._assumed_closed = True
             self._last_direction = "down"
             self._last_move_ts = time.monotonic()
         self.async_write_ha_state()

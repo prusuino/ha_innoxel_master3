@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.4.3 — 2026-08-07
+
+- Shutter covers (`InnoxelCover`) now always report an unknown state, so
+  both the open and the close button stay enabled at all times. The
+  Innoxel SOAP API exposes neither a position nor a running relay state
+  for motor channels (`outState` is always "off" there) — the previous
+  assumed state was merely the last command sent from Home Assistant and
+  went stale as soon as the shutter was moved by its wall switch, a scene
+  or a shading automation. Home Assistant greys out the button matching
+  the assumed end position, which left one direction unreachable until
+  the other had been pressed. Motor G2 blinds (`masterBlindModule`) are
+  unaffected; they have real position feedback.
+
 ## 1.4.2 — 2026-07-24
 
 - Diagnostic sensors now display with proper precision: voltages with two
