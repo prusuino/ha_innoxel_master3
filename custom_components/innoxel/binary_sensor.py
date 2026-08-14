@@ -23,11 +23,18 @@ async def async_setup_entry(
 
     entities = []
     for (mod_class, mod_index), info in coordinator.module_info.items():
-        if mod_class != "masterOutModule" or mod_index < 45:
+        if mod_class != "masterOutModule":
             continue
         desc = info.get("description", "")
-        if "Switch" in desc or "Virtuell" in desc:
-            continue  # handled by switch.py
+        # "In 8 / Out 8" modules: their out channels are LED/status
+        # indicators, never loads - expose them as read-only binary
+        # sensors instead of switches (any module index).
+        in8out8 = "In 8 / Out 8" in desc
+        if not in8out8:
+            if mod_index < 45:
+                continue
+            if "Switch" in desc or "Virtuell" in desc:
+                continue  # handled by switch.py
         ch_names = info.get("channels", {})
         for ch_idx, ch_name in sorted(ch_names.items()):
             if not ch_name.strip():
@@ -182,9 +189,19 @@ class InnoxelWeatherBinarySensor(CoordinatorEntity, BinarySensorEntity):
 
     @property
     def extra_state_attributes(self):
-        if self._key != "rain":
-            return None
-        # Raw precipitation value from the station — the wet-side value has
-        # never been captured live, so this makes it visible for diagnosis.
         weather = (self.coordinator.data or {}).get("weather", {})
-        return {"raw_value": weather.get("rain_raw")}
+        if self._key == "rain":
+            # Raw precipitation value from the station — the wet-side value
+            # has never been captured live, so this makes it visible for
+            # diagnosis.
+            return {"raw_value": weather.get("rain_raw")}
+        if self._key == "sensor_error":
+            # The four module health flags this sensor is derived from.
+            # If the tile ever goes red, these say which one did it.
+            return {
+                "module_state": weather.get("module_state"),
+                "address_conflict": weather.get("address_conflict"),
+                "missing_parameters": weather.get("missing_parameters"),
+                "lonely": weather.get("lonely"),
+            }
+        return None

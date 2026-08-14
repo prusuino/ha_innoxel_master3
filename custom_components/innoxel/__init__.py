@@ -371,14 +371,39 @@ class InnoxelCoordinator(DataUpdateCoordinator):
             weather["rain"] = raw not in ("", "dry")
             weather["rain_raw"] = raw
 
-        el = mod.find("u:state", ns)
-        if el is not None:
-            err = el.find("u:error", ns)
-            if err is not None:
-                try:
-                    weather["sensor_error"] = int(err.get("value", 0)) != 0
-                except (TypeError, ValueError):
-                    weather["sensor_error"] = False
+        # Health flags. These are ATTRIBUTES of the module element, not
+        # child elements: the Master delivers
+        #   <module class="masterWeatherModule" state="undefined"
+        #           possibleAddressConflict="no" missingParameters="no"
+        #           lonley="no">            (the typo is the firmware's)
+        # Until 2026-08-14 this looked for a child <state> holding an
+        # <error>, which the Master never sends - so sensor_error stayed
+        # unset, the entity read "unknown" forever, and every consumer
+        # testing for 'on' showed a permanent, meaningless OK.
+        conflict = (mod.get("possibleAddressConflict") or "").lower()
+        missing = (mod.get("missingParameters") or "").lower()
+        lonely = (mod.get("lonley") or "").lower()
+        mod_state = (mod.get("state") or "").lower()
+        weather["sensor_error"] = (
+            conflict == "yes"
+            or missing == "yes"
+            or lonely == "yes"
+            or mod_state == "notconnected"
+        )
+        # Raw values as attributes: if the tile ever turns red, this says
+        # which of the four flags did it.
+        weather["module_state"] = mod.get("state")
+        weather["address_conflict"] = mod.get("possibleAddressConflict")
+        weather["missing_parameters"] = mod.get("missingParameters")
+        weather["lonely"] = mod.get("lonley")
+        # ⚠️ state="undefined" is deliberately NOT treated as a fault.
+        # Measured 2026-08-14 across every module class: actuator and
+        # input modules report "ready" (44x) or "notConnected" (111x),
+        # and the weather module is the only one ever reporting
+        # "undefined" - while delivering perfectly plausible readings.
+        # It is a quirk of this module class, not a defect. Counting it
+        # would pin the tile to red permanently, which is exactly as
+        # useless as the permanent green it replaces.
 
         return weather
 

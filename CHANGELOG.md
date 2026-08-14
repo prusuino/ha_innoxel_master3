@@ -1,5 +1,30 @@
 # Changelog
 
+## 1.5.2 — 2026-08-14
+
+- **Fixed the weather station fault sensor** (`binary_sensor` "Wetterstation
+  Sensor Fehler"): it had never reported a value. The parser looked for a
+  child `<state>` element containing an `<error>` — the master never sends
+  either. The health flags are **attributes of the module element**
+  (`state`, `possibleAddressConflict`, `missingParameters`, `lonley` — the
+  typo is the firmware's). The sensor therefore stayed `unknown` forever,
+  and any dashboard testing for `on` showed a permanent, meaningless OK.
+- The sensor now reports a fault when `possibleAddressConflict`,
+  `missingParameters` or `lonley` is `yes`, or `state` is `notConnected`.
+  All four raw values are exposed as attributes, so when the sensor does
+  trip you can see which flag caused it.
+- `state="undefined"` is deliberately **not** treated as a fault: surveyed
+  across every module class, actuator and input modules report `ready` or
+  `notConnected`, while the weather module is the only one reporting
+  `undefined` — all while delivering perfectly plausible readings. It is a
+  quirk of this module class, not a defect.
+- (1.5.0, previously unreleased) "In 8 / Out 8" modules: their out
+  channels are LED/status indicators, never loads — they are now exposed
+  as read-only binary sensors instead of switches, at any module index.
+- (1.5.1 was an experiment with movement sensors for shutter actuators,
+  reverted before release: the master does not deliver relay states for
+  motor channels.)
+
 ## 1.4.3 — 2026-08-07
 
 - Shutter covers (`InnoxelCover`) now always report an unknown state, so
