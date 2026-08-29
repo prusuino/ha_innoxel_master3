@@ -2,7 +2,7 @@
 
 ![Innoxel Master 3](assets/readme_header.png)
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
+[![hacs_badge](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://github.com/hacs/integration)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 <a href="https://www.buymeacoffee.com/prusuino"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" height="20"></a>
 
@@ -35,6 +35,10 @@ Protocol details were informed by the community reference project [matthsc/innox
 **Note on the uptime sensor:** it reports the master's `statisticsTotalRunTime`, which counts operating time since the last complete power interruption (cold start). Warm restarts — e.g. a configuration upload from the INNOXEL Setup software — do **not** reset it, so it can show more days than the "runtime" visible in INNOXEL Setup after an upload. The SOAP protocol exposes no time-since-last-boot value.
 
 All entity names, room labels, and channel descriptions are read live from your own Innoxel controller via SOAP `getIdentity` at startup — **nothing is hardcoded**. Whatever you've named your channels in the Innoxel configuration is what shows up in Home Assistant.
+
+### Entity ids
+
+Entity ids do not depend on your Home Assistant language. Switches, covers and dimmers take their object id from the channel's module address plus its name in the Innoxel configuration: an OutModule switch channel named `Kitchen light` on module 1, channel 3 becomes `switch.o01_3_kitchen_light`; a cover pair becomes `cover.o02_k0_<name>` (the up channel's name without its ` auf` suffix); a dimmer channel becomes `light.d01_2_<name>`. Every other entity carries the `innoxel_` prefix and an address instead of a name — `binary_sensor.innoxel_o45_2` (physical output status), `switch.innoxel_ts_<n>` (time switch), `climate.innoxel_rc00` with `sensor.innoxel_rc00_temp` / `sensor.innoxel_rc00_setpoint` and `number.innoxel_rc00_night_setback` (room climate), `sensor.innoxel_weather_temperature`, `sensor.innoxel_diag_uptime_days`, `cover.innoxel_b01_0` (Motor G2). The id is derived once, when the entity is first created: renaming a channel in INNOXEL Setup later updates the displayed name but keeps the id, and any entity can be renamed in its settings at any time.
 
 ## Options
 
@@ -71,9 +75,13 @@ Discovery is tolerant: installations without G2 hardware (or with older firmware
 
 ### HACS (recommended)
 
-1. In HACS, go to **Integrations → ⋮ → Custom repositories**, add this repository URL with category **Integration**.
-2. Search for **"Innoxel Master 3"** and install.
-3. Restart Home Assistant.
+1. Open **HACS**, search for **"Innoxel Master 3"** and download it — or use the button, which opens the integration directly in your HACS:
+
+   [![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=prusuino&repository=ha_innoxel_master3&category=integration)
+
+2. Restart Home Assistant.
+
+Until the integration shows up in the HACS search, the button above adds it as a custom repository.
 
 ### Manual
 
