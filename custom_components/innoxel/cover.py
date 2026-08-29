@@ -14,7 +14,7 @@ from .const import DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 # Max seconds after a move command during which stop is allowed via last_direction fallback.
-# Innoxel Vollfahrt is typically 20-60 s; 90 s leaves margin for slow stores.
+# An Innoxel full travel typically takes 20-60 s; 65 s leaves a small margin for slow shutters.
 _MOVE_TIMEOUT = 65.0
 
 
@@ -71,7 +71,7 @@ async def async_setup_entry(
 class InnoxelCover(CoordinatorEntity, CoverEntity):
     _attr_device_class = CoverDeviceClass.SHUTTER
     _attr_supported_features = (
-        CoverEntityFeature.OPEN | CoverEntityFeature.CLOSE
+        CoverEntityFeature.OPEN | CoverEntityFeature.CLOSE | CoverEntityFeature.STOP
     )
 
     def __init__(self, coordinator, client, entry_id,
@@ -219,7 +219,6 @@ class InnoxelBlindCover(CoordinatorEntity, CoverEntity):
         self._channel = channel
         self._attr_name = f"[b{mod_index:02d}-{channel}] {name}"
         self._attr_unique_id = f"innoxel_{entry_id}_blind_{mod_index}_{channel}"
-        self.entity_id = f"cover.innoxel_b{mod_index:02d}_{channel}"
 
     def _raw(self) -> dict:
         state = self.coordinator.data or {}

@@ -1,5 +1,76 @@
 # Changelog
 
+## 1.6.0 — 2026-08-29
+
+Addresses the review feedback from the HACS default-repository submission.
+Nothing changes for existing entities: unique ids, entity ids and names are
+all kept, the one-second state poll stays a one-second poll.
+
+- **Minimum Home Assistant version is now 2025.2.0** (`hacs.json`). The
+  config flow imports `SsdpServiceInfo` from
+  `homeassistant.helpers.service_info.ssdp`, which only exists since
+  2025.2.0, and because the manifest declares SSDP discovery the module is
+  loaded on every start. 1.5.3 already required it in practice; the floor
+  now says so.
+- **Re-authentication.** When the master rejects the credentials (HTTP 401,
+  e.g. after the password was changed on the master), the integration no
+  longer treats it like an outage and retries every second. It stops
+  polling and Home Assistant shows a *Re-authenticate* prompt on the
+  integration card; the new username/password are verified against the
+  master, stored, and the integration reloads. The setup and options
+  dialogs now also distinguish *Invalid credentials* from *Failed to
+  connect*.
+- **Diagnostics no longer freeze.** The eight diagnostic sensors (voltages,
+  CPU temperatures, uptime, serial errors) and the six bus supply sensors
+  used to keep showing their last values indefinitely when
+  `getDeviceStateList` kept failing. They now show the last successful
+  reading for up to 60 seconds (six slow polls) and then become
+  *unavailable* until the read succeeds again. A failing diagnostics call
+  still never breaks the other updates.
+- **Entity ids come from the entity registry.** The platforms no longer
+  suggest entity ids themselves. **Existing installations keep every
+  entity id they have** (`sensor.innoxel_weather_temperature`,
+  `climate.innoxel_rc00`, `sensor.innoxel_diag_uptime_days`, ...): the
+  registry owns them, and the unique ids they are keyed on are unchanged.
+  Entity names are unchanged too. `has_entity_name` is deliberately not
+  enabled: it would prefix every existing friendly name with the device
+  name ("INNOXEL Master 3 Wetterstation Temperatur" instead of
+  "Wetterstation Temperatur"), i.e. rename every existing entity. New
+  installations get ids derived from the entity name, the same way
+  switches, lights and covers always did — e.g.
+  `sensor.wetterstation_temperatur`, `climate.raumklima_1`,
+  `sensor.raumklima_1_ist_temp`, `number.raumklima_1_nachtabsenkung`,
+  `binary_sensor.o45_2_<name>`, `cover.b01_0_<name>`,
+  `sensor.diagnose_uptime`.
+- **Shutter covers declare `STOP`.** `InnoxelCover` always implemented
+  `stop_cover` but did not advertise it, so the stop button was missing and
+  the `cover.stop_cover` service was refused. Stop sends a pulse in the
+  direction last commanded from Home Assistant while that move is younger
+  than 65 seconds, and sends nothing otherwise — the same logic as before.
+- **Two poll intervals instead of one.** Weather station, time switches,
+  room climate and hardware diagnostics moved off the one-second tick into a
+  second coordinator with its own 30-second schedule (previously 10 s for
+  weather/time switches/room climate and 60 s for diagnostics, all executed
+  inside the one-second poll). The one-second poll now only reads the
+  output/dim/blind module state and never waits for the slow calls. Entities
+  keep their unique ids and platforms; only their data source changed. The
+  intervals are documented in `const.py` and the README. A user command
+  (switch, cover, dimmer) no longer queues behind the slow calls either:
+  each entry has its own small thread pool with a worker for the fast poll,
+  one for the slow poll and one for commands.
+- **Cleanup.** The SOAP client's `close()` now actually releases its worker
+  threads when the entry unloads (or after a connection test in the setup
+  dialog) instead of leaving them behind on every reload; the threads are
+  per entry, not module-global. A slow poll that is still running when the
+  entry unloads (reload after an options change, re-authentication or a
+  configuration change on the master) now ends quietly with its previous
+  data instead of logging an error about the closed client. The SOAP debug
+  log no longer includes the Innoxel username, only the action name. The
+  README entity table now lists the "Diagnose Geräteinfo" sensor and
+  describes the output status binary sensors correctly (In 8 / Out 8
+  modules at any index, other output modules from index 45 on), and the
+  cover source comment matches the actual 65-second move timeout.
+
 ## 1.5.3 — 2026-08-29
 
 - The minimum supported Home Assistant version is now declared correctly as 2024.12.0. The options dialog has always required it (it relies on `OptionsFlow.config_entry`, which older versions do not provide), but `hacs.json` still claimed 2024.1.0, where the dialog would have failed. No functional changes.

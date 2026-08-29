@@ -12,6 +12,14 @@
           "password": "Passwort",
           "enable_cooling": "Kühlfunktionen aktivieren (nur wenn deine Anlage aktiv kühlt)"
         }
+      },
+      "reauth_confirm": {
+        "title": "Innoxel Master 3 erneut anmelden",
+        "description": "Der Innoxel Master 3 unter {host} hat die gespeicherten Anmeldedaten abgelehnt. Gib den aktuellen Benutzernamen und das Passwort des auf dem Master eingerichteten Benutzers ein.",
+        "data": {
+          "username": "Benutzername",
+          "password": "Passwort"
+        }
       }
     },
     "error": {
@@ -20,7 +28,8 @@
       "unknown": "Unbekannter Fehler"
     },
     "abort": {
-      "already_configured": "Bereits konfiguriert"
+      "already_configured": "Bereits konfiguriert",
+      "reauth_successful": "Erneute Anmeldung erfolgreich"
     }
   },
   "options": {
@@ -38,7 +47,8 @@
       }
     },
     "error": {
-      "cannot_connect": "Verbindung fehlgeschlagen"
+      "cannot_connect": "Verbindung fehlgeschlagen",
+      "invalid_auth": "Ungültige Anmeldedaten"
     }
   }
 }

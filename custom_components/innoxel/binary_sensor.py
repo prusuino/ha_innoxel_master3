@@ -19,7 +19,8 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     data = hass.data[DOMAIN][entry.entry_id]
-    coordinator = data["coordinator"]
+    coordinator = data["coordinator"]  # fast: output module state
+    slow = data["slow_coordinator"]  # weather, room climate, diagnostics
 
     entities = []
     for (mod_class, mod_index), info in coordinator.module_info.items():
@@ -52,18 +53,18 @@ async def async_setup_entry(
 
     # Room climate valve and alarm sensors
     for idx, name in sorted(coordinator.room_climate_modules.items()):
-        entities.append(InnoxelRoomClimateValve(coordinator, entry.entry_id, idx, name))
-        entities.append(InnoxelRoomClimateAlarm(coordinator, entry.entry_id, idx, name))
+        entities.append(InnoxelRoomClimateValve(slow, entry.entry_id, idx, name))
+        entities.append(InnoxelRoomClimateAlarm(slow, entry.entry_id, idx, name))
 
     # Weather binary sensors
     weather_entities = [
-        InnoxelWeatherBinarySensor(coordinator, entry.entry_id, "rain",          "Wetterstation Regen",    "rain",    BinarySensorDeviceClass.MOISTURE, "mdi:weather-rainy"),
-        InnoxelWeatherBinarySensor(coordinator, entry.entry_id, "civil_twilight", "Wetterstation Dämmerung", "dawn",   None,                             "mdi:weather-night"),
-        InnoxelWeatherBinarySensor(coordinator, entry.entry_id, "sensor_error",   "Wetterstation Sensor Fehler", "sensor_error", BinarySensorDeviceClass.PROBLEM, "mdi:alert-circle"),
+        InnoxelWeatherBinarySensor(slow, entry.entry_id, "rain",          "Wetterstation Regen",    BinarySensorDeviceClass.MOISTURE, "mdi:weather-rainy"),
+        InnoxelWeatherBinarySensor(slow, entry.entry_id, "civil_twilight", "Wetterstation Dämmerung", None,                             "mdi:weather-night"),
+        InnoxelWeatherBinarySensor(slow, entry.entry_id, "sensor_error",   "Wetterstation Sensor Fehler", BinarySensorDeviceClass.PROBLEM, "mdi:alert-circle"),
     ]
     # Bus supply state diagnostics (on = problem, i.e. anything but "OK")
     supply_entities = [
-        InnoxelSupplyBinarySensor(coordinator, entry.entry_id, key, name)
+        InnoxelSupplyBinarySensor(slow, entry.entry_id, key, name)
         for key, name in (
             ("supply_can1",     "Diagnose CAN1 Versorgung"),
             ("supply_can2",     "Diagnose CAN2 Versorgung"),
@@ -84,7 +85,6 @@ class InnoxelBinarySensor(CoordinatorEntity, BinarySensorEntity):
         self._channel = channel
         self._attr_name = name
         self._attr_unique_id = f"innoxel_{entry_id}_binary_{mod_index}_{channel}"
-        self.entity_id = f"binary_sensor.innoxel_o{mod_index:02d}_{channel}"
 
     @property
     def is_on(self) -> bool | None:
@@ -103,7 +103,6 @@ class InnoxelRoomClimateValve(CoordinatorEntity, BinarySensorEntity):
         self._idx = idx
         self._attr_name = f"{room_name} Ventil"
         self._attr_unique_id = f"innoxel_{entry_id}_rc_{idx}_valve"
-        self.entity_id = f"binary_sensor.innoxel_rc{idx:02d}_valve"
         self._attr_device_class = BinarySensorDeviceClass.OPENING
         self._attr_icon = "mdi:valve"
 
@@ -126,7 +125,6 @@ class InnoxelRoomClimateAlarm(CoordinatorEntity, BinarySensorEntity):
         self._idx = idx
         self._attr_name = f"{room_name} Alarm"
         self._attr_unique_id = f"innoxel_{entry_id}_rc_{idx}_alarm"
-        self.entity_id = f"binary_sensor.innoxel_rc{idx:02d}_alarm"
 
     def _alarm(self) -> str | None:
         rc = (self.coordinator.data or {}).get("roomclimate", {})
@@ -155,7 +153,11 @@ class InnoxelSupplyBinarySensor(CoordinatorEntity, BinarySensorEntity):
         self._data_key = data_key
         self._attr_name = name
         self._attr_unique_id = f"innoxel_{entry_id}_diag_{data_key}"
-        self.entity_id = f"binary_sensor.innoxel_diag_{data_key}"
+
+    @property
+    def available(self) -> bool:
+        # Unavailable instead of stale values when getDeviceStateList keeps failing
+        return super().available and self.coordinator.device_status_available
 
     @property
     def is_on(self) -> bool | None:
@@ -172,13 +174,12 @@ class InnoxelSupplyBinarySensor(CoordinatorEntity, BinarySensorEntity):
 
 
 class InnoxelWeatherBinarySensor(CoordinatorEntity, BinarySensorEntity):
-    def __init__(self, coordinator, entry_id, key, name, suffix, device_class, icon):
+    def __init__(self, coordinator, entry_id, key, name, device_class, icon):
         super().__init__(coordinator)
         self._attr_device_info = coordinator.device_info
         self._key = key
         self._attr_name = name
         self._attr_unique_id = f"innoxel_{entry_id}_weather_{key}"
-        self.entity_id = f"binary_sensor.innoxel_weather_{suffix}"
         self._attr_device_class = device_class
         self._attr_icon = icon
 

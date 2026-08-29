@@ -18,7 +18,8 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     data = hass.data[DOMAIN][entry.entry_id]
-    coordinator = data["coordinator"]
+    coordinator = data["coordinator"]  # fast: output module state
+    slow = data["slow_coordinator"]  # time switch states
     client = data["client"]
 
     entities = []
@@ -44,7 +45,7 @@ async def async_setup_entry(
     # Timeswitch modules
     for ts_index, ts_name in coordinator.time_switch_modules.items():
         entities.append(
-            InnoxelTimeSwitchSwitch(coordinator, client, entry.entry_id, ts_index, ts_name)
+            InnoxelTimeSwitchSwitch(slow, client, entry.entry_id, ts_index, ts_name)
         )
 
     async_add_entities(entities)
@@ -85,7 +86,6 @@ class InnoxelTimeSwitchSwitch(CoordinatorEntity, SwitchEntity):
         self._index = index
         self._attr_name = name
         self._attr_unique_id = f"innoxel_{entry_id}_ts_{index}"
-        self.entity_id = f"switch.innoxel_ts_{index}"
 
     @property
     def is_on(self) -> bool | None:
@@ -94,8 +94,8 @@ class InnoxelTimeSwitchSwitch(CoordinatorEntity, SwitchEntity):
 
     async def async_turn_on(self, **kwargs) -> None:
         await self._client.set_time_switch_state(self._index, True)
-        await self.coordinator.async_refresh()
+        await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs) -> None:
         await self._client.set_time_switch_state(self._index, False)
-        await self.coordinator.async_refresh()
+        await self.coordinator.async_request_refresh()

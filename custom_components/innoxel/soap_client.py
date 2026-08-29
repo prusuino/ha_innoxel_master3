@@ -4,11 +4,26 @@ import logging
 import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
+from xml.etree import ElementTree as ET
 
 SOAP_NS = "urn:innoxel-ch:service:noxnetRemote:1"
 
-_executor = ThreadPoolExecutor(max_workers=2)
+# Seconds a single SOAP request may take before it is abandoned.
+_REQUEST_TIMEOUT = 10
+# Worker threads per client: one for the fast state poll, one for the slow
+# poll (weather, time switches, room climate, diagnostics) and one for user
+# commands, so none of them has to wait for another.
+_MAX_WORKERS = 3
+
 _LOGGER = logging.getLogger(__name__)
+
+
+class InnoxelAuthError(Exception):
+    """The master rejected the credentials (HTTP 401 after the digest handshake)."""
+
+
+class InnoxelClientClosed(RuntimeError):
+    """A request was made after close(), i.e. while the config entry unloads."""
 
 
 def _sync_soap_call(url: str, username: str, password: str, action: str, body: str) -> str:
@@ -28,13 +43,17 @@ def _sync_soap_call(url: str, username: str, password: str, action: str, body: s
     req = urllib.request.Request(url, data=soap, method="POST")
     req.add_header("Content-Type", 'text/xml; charset="utf-8"')
     req.add_header("soapaction", f"{SOAP_NS}#{action}")
-    _LOGGER.debug("SOAP %s user=%s", action, username)
+    _LOGGER.debug("SOAP %s", action)
     try:
-        with opener.open(req, timeout=10) as r:
+        with opener.open(req, timeout=_REQUEST_TIMEOUT) as r:
             result = r.read().decode("utf-8", errors="replace")
             _LOGGER.debug("SOAP %s -> HTTP %s, body=%s", action, r.status, result[:80])
             return result
     except urllib.error.HTTPError as exc:
+        if exc.code == 401:
+            # The digest handler has already retried; the credentials are wrong.
+            _LOGGER.error("SOAP %s rejected with HTTP 401: invalid username or password", action)
+            raise InnoxelAuthError(f"HTTP 401 on {action}") from exc
         _LOGGER.error("SOAP %s HTTP error %s: %s", action, exc.code, exc.read(200))
         raise
     except Exception as exc:
@@ -47,13 +66,22 @@ class InnoxelSoapClient:
         self._url = f"http://{host}:{port}/control"
         self._username = username
         self._password = password
+        # One small thread pool per client (i.e. per config entry), released
+        # in close() when the entry unloads. Every request opens and closes
+        # its own HTTP connection, so there is no session to keep.
+        self._executor = ThreadPoolExecutor(
+            max_workers=_MAX_WORKERS, thread_name_prefix="innoxel_soap"
+        )
+        self._closed = False
 
     async def _post(self, action: str, body: str) -> str:
+        if self._closed:
+            raise InnoxelClientClosed("Innoxel SOAP client is closed")
         loop = asyncio.get_running_loop()
         fn = functools.partial(
             _sync_soap_call, self._url, self._username, self._password, action, body
         )
-        return await loop.run_in_executor(_executor, fn)
+        return await loop.run_in_executor(self._executor, fn)
 
     async def get_identity(self) -> str:
         body = (
@@ -138,8 +166,6 @@ class InnoxelSoapClient:
 
     async def get_room_climate_state(self, indices: list[int]) -> dict:
         """Query each module individually — batch requests cause HTTP 500."""
-        import asyncio
-        from xml.etree import ElementTree as ET
         result: dict = {}
         ns = {"u": SOAP_NS}
         fields = (
@@ -183,8 +209,14 @@ class InnoxelSoapClient:
                 alarm = root.find(".//u:alarmState", ns)
                 data["alarm"] = (alarm.text or "").strip() if alarm is not None else ""
                 result[i] = data
-            except Exception:
-                pass
+            except InnoxelAuthError:
+                # Wrong credentials are not a per-module condition
+                raise
+            except InnoxelClientClosed:
+                # The entry is unloading: stop instead of skipping the rest
+                raise
+            except Exception as exc:
+                _LOGGER.debug("Room climate module %d skipped: %s", i, exc)
         return result
 
     async def get_device_state(self) -> str:
@@ -270,4 +302,15 @@ class InnoxelSoapClient:
         await self._post("setState", body)
 
     async def close(self) -> None:
-        pass
+        """Release the worker threads.
+
+        Called when the config entry unloads (and by the config flow after a
+        connection test). Requests still queued are cancelled; a request in
+        flight finishes on its own thread. Every request uses its own HTTP
+        connection, closed when the response has been read, so nothing else
+        is left open.
+        """
+        if self._closed:
+            return
+        self._closed = True
+        self._executor.shutdown(wait=False, cancel_futures=True)

@@ -21,10 +21,11 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     data = hass.data[DOMAIN][entry.entry_id]
-    coordinator = data["coordinator"]
+    coordinator = data["coordinator"]  # identity: which room climate modules exist
+    slow = data["slow_coordinator"]  # room climate data
     client = data["client"]
     entities = [
-        InnoxelRoomClimate(coordinator, client, entry.entry_id, idx, name)
+        InnoxelRoomClimate(slow, client, entry.entry_id, idx, name)
         for idx, name in sorted(coordinator.room_climate_modules.items())
     ]
     async_add_entities(entities)
@@ -46,7 +47,6 @@ class InnoxelRoomClimate(CoordinatorEntity, ClimateEntity):
         self._client = client
         self._attr_name = room_name
         self._attr_unique_id = f"innoxel_{entry_id}_rc_{idx}_climate"
-        self.entity_id = f"climate.innoxel_rc{idx:02d}"
 
     def _rc(self) -> dict:
         return (self.coordinator.data or {}).get("roomclimate", {}).get(self._idx, {})

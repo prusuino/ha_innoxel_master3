@@ -8,16 +8,21 @@ from xml.etree import ElementTree as ET
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, DeviceInfo, format_mac
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .const import DOMAIN, SCAN_INTERVAL, SOAP_NS
-from .soap_client import InnoxelSoapClient
+from .const import (
+    DEVICE_STATUS_STALE_AFTER,
+    DOMAIN,
+    SCAN_INTERVAL,
+    SLOW_SCAN_INTERVAL,
+    SOAP_NS,
+)
+from .soap_client import InnoxelAuthError, InnoxelClientClosed, InnoxelSoapClient
 
 _LOGGER = logging.getLogger(__name__)
 PLATFORMS = ["binary_sensor", "climate", "cover", "light", "number", "sensor", "switch"]
-_WEATHER_INTERVAL = 10.0  # seconds between weather/timeswitch updates
-_DEVICE_STATUS_INTERVAL = 60.0  # seconds between hardware diagnostics updates
 
 
 def _normalize_tokens(name: str) -> list[str]:
@@ -54,10 +59,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry.data[CONF_USERNAME],
         entry.data[CONF_PASSWORD],
     )
-    coordinator = InnoxelCoordinator(hass, client, entry.entry_id)
-    await coordinator.async_config_entry_first_refresh()
+    coordinator = InnoxelCoordinator(hass, entry, client)
+    slow_coordinator = InnoxelSlowCoordinator(hass, entry, client, coordinator)
+    try:
+        # The fast coordinator loads the identity (module lists) first; the
+        # slow one needs it to know which room climate modules to query.
+        await coordinator.async_config_entry_first_refresh()
+        await slow_coordinator.async_config_entry_first_refresh()
+    except Exception:
+        # Setup is retried (or re-authentication started) by Home Assistant;
+        # do not leave the worker threads of this attempt behind.
+        await client.close()
+        raise
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
         "coordinator": coordinator,
+        "slow_coordinator": slow_coordinator,
         "client": client,
     }
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -73,20 +89,31 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         data = hass.data[DOMAIN].pop(entry.entry_id)
+        await data["coordinator"].async_shutdown()
+        await data["slow_coordinator"].async_shutdown()
         await data["client"].close()
+        if not hass.data[DOMAIN]:
+            hass.data.pop(DOMAIN)
     return unload_ok
 
 
 class InnoxelCoordinator(DataUpdateCoordinator):
-    def __init__(self, hass: HomeAssistant, client: InnoxelSoapClient, entry_id: str) -> None:
+    """Fast poll: output, dim and Motor G2 blind module state, every second.
+
+    Also owns the identity data (module lists, device info) loaded once at
+    startup. Nothing here waits for the slow coordinator.
+    """
+
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, client: InnoxelSoapClient) -> None:
         super().__init__(
             hass,
             _LOGGER,
+            config_entry=entry,
             name=DOMAIN,
             update_interval=timedelta(seconds=SCAN_INTERVAL),
         )
         self.client = client
-        self.entry_id = entry_id
+        self.entry_id = entry.entry_id
         self.device_data: dict = {}
         self.module_info: dict = {}
         self.input_channel_map: dict = {}
@@ -96,12 +123,6 @@ class InnoxelCoordinator(DataUpdateCoordinator):
         self._reload_scheduled = False
         self.time_switch_modules: dict[int, str] = {}
         self.room_climate_modules: dict[int, str] = {}
-        self._cached_weather: dict = {}
-        self._cached_timeswitch: dict = {}
-        self._cached_roomclimate: dict = {}
-        self._cached_devicestatus: dict = {}
-        self._last_weather_update: float = 0.0
-        self._last_devicestatus_update: float = 0.0
 
     async def _async_update_data(self) -> dict:
         try:
@@ -111,30 +132,10 @@ class InnoxelCoordinator(DataUpdateCoordinator):
                 await self.client.get_state(blind_modules=list(self.blind_modules))
             )
             self._check_boot_id(state.pop("boot_id", None))
-            now = time.monotonic()
-            if now - self._last_weather_update >= _WEATHER_INTERVAL:
-                self._last_weather_update = now
-                weather_xml = await self.client.get_weather_state()
-                self._cached_weather = self._parse_weather_state(weather_xml)
-                ts_xml = await self.client.get_time_switch_state()
-                self._cached_timeswitch = self._parse_time_switch_state(ts_xml)
-                if self.room_climate_modules:
-                    self._cached_roomclimate = await self.client.get_room_climate_state(
-                        list(self.room_climate_modules.keys())
-                    )
-            if now - self._last_devicestatus_update >= _DEVICE_STATUS_INTERVAL:
-                self._last_devicestatus_update = now
-                try:
-                    ds_xml = await self.client.get_device_state()
-                    self._cached_devicestatus = self._parse_device_status(ds_xml)
-                except Exception as exc:
-                    # Diagnostics are non-essential — never fail the whole update
-                    _LOGGER.warning("Device status update failed: %s", exc)
-            state["weather"] = self._cached_weather
-            state["timeswitch"] = self._cached_timeswitch
-            state["roomclimate"] = self._cached_roomclimate
-            state["devicestatus"] = self._cached_devicestatus
             return state
+        except InnoxelAuthError as exc:
+            # Starts the re-authentication flow instead of retrying forever
+            raise ConfigEntryAuthFailed(f"Innoxel rejected the credentials: {exc}") from exc
         except Exception as exc:
             raise UpdateFailed(f"Innoxel update failed: {exc}") from exc
 
@@ -214,6 +215,8 @@ class InnoxelCoordinator(DataUpdateCoordinator):
                     val = resp.findtext(f"u:{elem}", None, ns)
                     if val:
                         data[key] = val.strip()
+        except InnoxelAuthError:
+            raise
         except Exception as exc:
             # Device info is cosmetic — never block startup on it
             _LOGGER.warning("Device version/identity fetch failed: %s", exc)
@@ -311,6 +314,8 @@ class InnoxelCoordinator(DataUpdateCoordinator):
                         "name": mod.get("name", ""),
                         "channels": channels,
                     }
+        except InnoxelAuthError:
+            raise
         except Exception as exc:
             _LOGGER.debug("Blind module discovery skipped: %s", exc)
 
@@ -319,6 +324,8 @@ class InnoxelCoordinator(DataUpdateCoordinator):
             rc_data = await self.client.get_room_climate_state(list(range(9)))
             for idx in rc_data:
                 self.room_climate_modules[idx] = f"Raumklima {idx + 1}"
+        except InnoxelAuthError:
+            raise
         except Exception as exc:
             _LOGGER.warning("RoomClimate discovery failed: %s", exc)
 
@@ -327,6 +334,138 @@ class InnoxelCoordinator(DataUpdateCoordinator):
             len(self.module_info), len(self.time_switch_modules), len(in_map),
             len(self.room_climate_modules), len(self.blind_modules),
         )
+
+    @staticmethod
+    def _parse_state(xml: str) -> dict:
+        root = ET.fromstring(xml)
+        ns = {"u": SOAP_NS}
+        state: dict = {}
+        boot_el = root.find(".//u:bootId", ns)
+        if boot_el is not None and boot_el.text:
+            state["boot_id"] = boot_el.text.strip()
+        for mod in root.findall(".//u:module", ns):
+            key = (mod.get("class"), int(mod.get("index")))
+            channels: dict = {}
+            for ch in mod.findall("u:channel", ns):
+                out = ch.get("outState")
+                if out is not None:
+                    channels[int(ch.get("index"))] = out
+                    continue
+                pos = ch.get("relativePosition")
+                if pos is not None:
+                    # Motor G2 blind channels: raw scale 0-1000, -1 = unknown
+                    try:
+                        channels[int(ch.get("index"))] = {
+                            "position": int(pos),
+                            "tilt": int(ch.get("relativeTilt", -1)),
+                        }
+                    except (TypeError, ValueError):
+                        pass
+            state[key] = {"module_state": mod.get("state"), "channels": channels}
+        return state
+
+
+class InnoxelSlowCoordinator(DataUpdateCoordinator):
+    """Slow poll: weather station, time switches, room climate, diagnostics.
+
+    Runs on its own interval (SLOW_SCAN_INTERVAL) so that the room climate
+    round trips and the diagnostics call never delay the one-second state
+    poll. It reads the module lists from the fast coordinator, but never
+    waits for it.
+    """
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        entry: ConfigEntry,
+        client: InnoxelSoapClient,
+        fast: InnoxelCoordinator,
+    ) -> None:
+        super().__init__(
+            hass,
+            _LOGGER,
+            config_entry=entry,
+            name=f"{DOMAIN} slow",
+            update_interval=timedelta(seconds=SLOW_SCAN_INTERVAL),
+        )
+        self.client = client
+        self._fast = fast
+        self._cached_devicestatus: dict = {}
+        # time.monotonic() of the last successful getDeviceStateList read;
+        # None until the first one succeeds
+        self.device_status_updated: float | None = None
+        self._device_status_failing = False
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        return self._fast.device_info
+
+    @property
+    def device_data(self) -> dict:
+        return self._fast.device_data
+
+    @property
+    def device_status_available(self) -> bool:
+        """False when the diagnostics payload is missing or stale.
+
+        Entities fed from getDeviceStateList report this as their
+        availability, so stale voltages and temperatures are not shown as
+        current values while the rest of the integration keeps working.
+        """
+        if self.device_status_updated is None:
+            return False
+        return time.monotonic() - self.device_status_updated < DEVICE_STATUS_STALE_AFTER
+
+    async def _async_update_data(self) -> dict:
+        try:
+            weather = self._parse_weather_state(await self.client.get_weather_state())
+            timeswitch = self._parse_time_switch_state(
+                await self.client.get_time_switch_state()
+            )
+            roomclimate: dict = {}
+            if self._fast.room_climate_modules:
+                roomclimate = await self.client.get_room_climate_state(
+                    list(self._fast.room_climate_modules)
+                )
+        except InnoxelAuthError as exc:
+            raise ConfigEntryAuthFailed(f"Innoxel rejected the credentials: {exc}") from exc
+        except InnoxelClientClosed:
+            # close() landed while this cycle was running: the entry is
+            # unloading (options change, re-authentication, bootId change).
+            # Not an error - keep the previous data and let the unload finish.
+            return self.data
+        except Exception as exc:
+            raise UpdateFailed(f"Innoxel slow update failed: {exc}") from exc
+
+        try:
+            self._cached_devicestatus = self._parse_device_status(
+                await self.client.get_device_state()
+            )
+            self.device_status_updated = time.monotonic()
+            if self._device_status_failing:
+                self._device_status_failing = False
+                _LOGGER.info("Device status update recovered")
+        except InnoxelAuthError as exc:
+            raise ConfigEntryAuthFailed(f"Innoxel rejected the credentials: {exc}") from exc
+        except InnoxelClientClosed:
+            # Entry is unloading (see above): keep the previous data
+            return self.data
+        except Exception as exc:
+            # Diagnostics are non-essential — never fail the whole update.
+            # The last payload is kept; the entities fed from it go
+            # unavailable once it is older than DEVICE_STATUS_STALE_AFTER.
+            if not self._device_status_failing:
+                self._device_status_failing = True
+                _LOGGER.warning("Device status update failed: %s", exc)
+            else:
+                _LOGGER.debug("Device status update still failing: %s", exc)
+
+        return {
+            "weather": weather,
+            "timeswitch": timeswitch,
+            "roomclimate": roomclimate,
+            "devicestatus": self._cached_devicestatus,
+        }
 
     @staticmethod
     def _parse_weather_state(xml: str) -> dict:
@@ -487,32 +626,3 @@ class InnoxelCoordinator(DataUpdateCoordinator):
             if state_el is not None:
                 ts[idx] = state_el.get("operatingState", "disabled")
         return ts
-
-    @staticmethod
-    def _parse_state(xml: str) -> dict:
-        root = ET.fromstring(xml)
-        ns = {"u": SOAP_NS}
-        state: dict = {}
-        boot_el = root.find(".//u:bootId", ns)
-        if boot_el is not None and boot_el.text:
-            state["boot_id"] = boot_el.text.strip()
-        for mod in root.findall(".//u:module", ns):
-            key = (mod.get("class"), int(mod.get("index")))
-            channels: dict = {}
-            for ch in mod.findall("u:channel", ns):
-                out = ch.get("outState")
-                if out is not None:
-                    channels[int(ch.get("index"))] = out
-                    continue
-                pos = ch.get("relativePosition")
-                if pos is not None:
-                    # Motor G2 blind channels: raw scale 0-1000, -1 = unknown
-                    try:
-                        channels[int(ch.get("index"))] = {
-                            "position": int(pos),
-                            "tilt": int(ch.get("relativeTilt", -1)),
-                        }
-                    except (TypeError, ValueError):
-                        pass
-            state[key] = {"module_state": mod.get("state"), "channels": channels}
-        return state

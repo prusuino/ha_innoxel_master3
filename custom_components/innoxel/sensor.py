@@ -10,7 +10,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import DOMAIN
 
 _WEATHER_SENSORS = [
-    # (data_key, name, entity_suffix, device_class, unit, icon)
+    # (data_key, name, unique_id_suffix, device_class, unit, icon)
     ("temperature_air",  "Wetterstation Temperatur",          "temperature",       SensorDeviceClass.TEMPERATURE,   UnitOfTemperature.CELSIUS,           "mdi:thermometer"),
     ("temperature_felt", "Wetterstation Gefühlte Temperatur", "temperature_felt",  SensorDeviceClass.TEMPERATURE,   UnitOfTemperature.CELSIUS,           "mdi:thermometer-lines"),
     # SOAP reports windSpeed in m/s (unit attribute in XML); HA converts the displayed state to km/h
@@ -42,33 +42,34 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
+    data = hass.data[DOMAIN][entry.entry_id]
+    coordinator = data["coordinator"]  # identity: which room climate modules exist
+    slow = data["slow_coordinator"]  # data source of every sensor in this platform
     entities: list = [
-        InnoxelWeatherSensor(coordinator, entry.entry_id, *row)
+        InnoxelWeatherSensor(slow, entry.entry_id, *row)
         for row in _WEATHER_SENSORS
     ]
     for idx, name in sorted(coordinator.room_climate_modules.items()):
-        entities.append(InnoxelRoomClimateSensor(coordinator, entry.entry_id, idx, name, "actual_temp", "Ist-Temp"))
-        entities.append(InnoxelRoomClimateSensor(coordinator, entry.entry_id, idx, name, "set_temp",    "Soll-Temp"))
+        entities.append(InnoxelRoomClimateSensor(slow, entry.entry_id, idx, name, "actual_temp", "Ist-Temp"))
+        entities.append(InnoxelRoomClimateSensor(slow, entry.entry_id, idx, name, "set_temp",    "Soll-Temp"))
     entities.extend(
-        InnoxelDeviceSensor(coordinator, entry.entry_id, *row)
+        InnoxelDeviceSensor(slow, entry.entry_id, *row)
         for row in _DEVICE_SENSORS
     )
-    entities.append(InnoxelDeviceIdentitySensor(coordinator, entry.entry_id))
+    entities.append(InnoxelDeviceIdentitySensor(slow, entry.entry_id))
     async_add_entities(entities)
 
 
 class InnoxelWeatherSensor(CoordinatorEntity, SensorEntity):
     _attr_state_class = SensorStateClass.MEASUREMENT
 
-    def __init__(self, coordinator, entry_id, data_key, name, entity_suffix,
+    def __init__(self, coordinator, entry_id, data_key, name, unique_suffix,
                  device_class, unit, icon):
         super().__init__(coordinator)
         self._attr_device_info = coordinator.device_info
         self._data_key = data_key
         self._attr_name = name
-        self._attr_unique_id = f"innoxel_{entry_id}_weather_{entity_suffix}"
-        self.entity_id = f"sensor.innoxel_weather_{entity_suffix}"
+        self._attr_unique_id = f"innoxel_{entry_id}_weather_{unique_suffix}"
         self._attr_device_class = device_class
         self._attr_native_unit_of_measurement = unit
         self._attr_icon = icon
@@ -89,11 +90,15 @@ class InnoxelDeviceSensor(CoordinatorEntity, SensorEntity):
         self._data_key = data_key
         self._attr_name = name
         self._attr_unique_id = f"innoxel_{entry_id}_diag_{data_key}"
-        self.entity_id = f"sensor.innoxel_diag_{data_key}"
         self._attr_device_class = device_class
         self._attr_native_unit_of_measurement = unit
         self._attr_icon = icon
         self._attr_suggested_display_precision = precision
+
+    @property
+    def available(self) -> bool:
+        # Unavailable instead of stale values when getDeviceStateList keeps failing
+        return super().available and self.coordinator.device_status_available
 
     @property
     def native_value(self):
@@ -119,7 +124,6 @@ class InnoxelDeviceIdentitySensor(CoordinatorEntity, SensorEntity):
         self._attr_device_info = coordinator.device_info
         self._attr_name = "Diagnose Geräteinfo"
         self._attr_unique_id = f"innoxel_{entry_id}_diag_device_identity"
-        self.entity_id = "sensor.innoxel_diag_device_identity"
 
     @property
     def native_value(self):
@@ -153,8 +157,6 @@ class InnoxelRoomClimateSensor(CoordinatorEntity, SensorEntity):
         self._data_key = data_key
         self._attr_name = f"{room_name} {label}"
         self._attr_unique_id = f"innoxel_{entry_id}_rc_{idx}_{data_key}"
-        suffix = "temp" if data_key == "actual_temp" else "setpoint"
-        self.entity_id = f"sensor.innoxel_rc{idx:02d}_{suffix}"
         self._attr_icon = "mdi:thermometer" if data_key == "actual_temp" else "mdi:thermometer-chevron-up"
 
     @property

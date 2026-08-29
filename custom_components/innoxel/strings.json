@@ -12,6 +12,14 @@
           "password": "Password",
           "enable_cooling": "Enable cooling controls (only if your system actively cools)"
         }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate Innoxel Master 3",
+        "description": "The Innoxel Master 3 at {host} rejected the stored credentials. Enter the current username and password of the user configured on the master.",
+        "data": {
+          "username": "Username",
+          "password": "Password"
+        }
       }
     },
     "error": {
@@ -20,7 +28,8 @@
       "unknown": "Unknown error"
     },
     "abort": {
-      "already_configured": "Already configured"
+      "already_configured": "Already configured",
+      "reauth_successful": "Re-authentication was successful"
     }
   },
   "options": {
@@ -38,7 +47,8 @@
       }
     },
     "error": {
-      "cannot_connect": "Failed to connect"
+      "cannot_connect": "Failed to connect",
+      "invalid_auth": "Invalid credentials"
     }
   }
 }

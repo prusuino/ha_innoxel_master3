@@ -1,14 +1,33 @@
+from collections.abc import Mapping
+from typing import Any
 from urllib.parse import urlparse
 
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
 from homeassistant.core import callback
-from homeassistant.data_entry_flow import AbortFlow
 from homeassistant.helpers.service_info.ssdp import SsdpServiceInfo
 
 from .const import CONF_ENABLE_COOLING, DEFAULT_PORT, DOMAIN
-from .soap_client import InnoxelSoapClient
+from .soap_client import InnoxelAuthError, InnoxelSoapClient
+
+
+async def _async_validate(host: str, port: int, username: str, password: str) -> str | None:
+    """Try the credentials against the master.
+
+    Returns the error key for the form ("invalid_auth" / "cannot_connect")
+    or None when the master answered.
+    """
+    client = InnoxelSoapClient(host, port, username, password)
+    try:
+        await client.get_identity()
+    except InnoxelAuthError:
+        return "invalid_auth"
+    except Exception:
+        return "cannot_connect"
+    finally:
+        await client.close()
+    return None
 
 
 class InnoxelConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -48,25 +67,20 @@ class InnoxelConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(self, user_input=None):
         errors = {}
         if user_input is not None:
-            client = InnoxelSoapClient(
+            error = await _async_validate(
                 user_input[CONF_HOST],
                 user_input[CONF_PORT],
                 user_input[CONF_USERNAME],
                 user_input[CONF_PASSWORD],
             )
-            try:
-                await client.get_identity()
+            if error:
+                errors["base"] = error
+            else:
                 self._async_abort_entries_match({CONF_HOST: user_input[CONF_HOST]})
                 return self.async_create_entry(
                     title=f"Innoxel {user_input[CONF_HOST]}",
                     data=user_input,
                 )
-            except AbortFlow:
-                raise
-            except Exception:
-                errors["base"] = "cannot_connect"
-            finally:
-                await client.close()
 
         schema = vol.Schema(
             {
@@ -81,6 +95,45 @@ class InnoxelConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=schema,
             errors=errors,
+        )
+
+    async def async_step_reauth(self, entry_data: Mapping[str, Any]):
+        """The master rejected the stored credentials (e.g. after a password change)."""
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(self, user_input=None):
+        errors = {}
+        entry = self._get_reauth_entry()
+        if user_input is not None:
+            error = await _async_validate(
+                entry.data[CONF_HOST],
+                entry.data.get(CONF_PORT, DEFAULT_PORT),
+                user_input[CONF_USERNAME],
+                user_input[CONF_PASSWORD],
+            )
+            if error:
+                errors["base"] = error
+            else:
+                # Stores the new credentials and reloads the entry
+                return self.async_update_reload_and_abort(
+                    entry,
+                    data_updates={
+                        CONF_USERNAME: user_input[CONF_USERNAME],
+                        CONF_PASSWORD: user_input[CONF_PASSWORD],
+                    },
+                )
+
+        schema = vol.Schema(
+            {
+                vol.Required(CONF_USERNAME, default=entry.data.get(CONF_USERNAME, "")): str,
+                vol.Required(CONF_PASSWORD): str,
+            }
+        )
+        return self.async_show_form(
+            step_id="reauth_confirm",
+            data_schema=schema,
+            errors=errors,
+            description_placeholders={"host": entry.data[CONF_HOST]},
         )
 
 
@@ -98,18 +151,14 @@ class InnoxelOptionsFlow(config_entries.OptionsFlow):
                 CONF_USERNAME: user_input[CONF_USERNAME],
                 CONF_PASSWORD: user_input[CONF_PASSWORD],
             }
-            client = InnoxelSoapClient(
+            error = await _async_validate(
                 connection[CONF_HOST],
                 connection[CONF_PORT],
                 connection[CONF_USERNAME],
                 connection[CONF_PASSWORD],
             )
-            try:
-                await client.get_identity()
-            except Exception:
-                errors["base"] = "cannot_connect"
-            finally:
-                await client.close()
+            if error:
+                errors["base"] = error
 
             if not errors:
                 if connection != {k: entry.data.get(k) for k in connection}:

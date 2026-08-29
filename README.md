@@ -27,10 +27,11 @@ Protocol details were informed by the community reference project [matthsc/innox
 | `light` | `masterDimModule` | Brightness only |
 | `sensor` (weather) | `masterWeatherModule` | Temperature (actual + felt), wind speed, sun brightness (east/south/west), twilight lux |
 | `binary_sensor` (weather) | `masterWeatherModule` | Rain, civil twilight (dawn), sensor error |
-| `binary_sensor` | `masterOutModule` (module index ≥ 45, not switch/virtual) | Physical output status |
+| `binary_sensor` | `masterOutModule` — every `"In 8 / Out 8"` module at any index (their out channels are status LEDs), plus other output modules from index 45 on whose description contains neither `"Switch"` nor `"Virtuell"` | Physical output status, read-only |
 | `climate` + `sensor` + `binary_sensor` | `masterRoomClimateModule` | Target/actual temperature, valve open state, firmware-reported heating/cooling action, thermostat alarm (diagnostic) |
 | `number` | `masterRoomClimateModule` | Adjustable night-setback and absence-setback temperatures per room; optional cooling setpoint and cooling setbacks (enable via the integration options if your system actively cools) |
-| `sensor` + `binary_sensor` (diagnostics) | `getDeviceStateList` | Master hardware health: supply/CPU/backup-battery/key-matrix voltages, CPU temperatures, uptime, serial error counters, CAN/Com bus supply states (as problem sensors) |
+| `sensor` + `binary_sensor` (diagnostics) | `getDeviceStateList` | Master hardware health: supply/CPU/backup-battery/key-matrix voltages, CPU temperatures, uptime, serial error counters, CAN/Com bus supply states (as problem sensors). These entities become unavailable when the diagnostics read keeps failing, see [Polling](#polling) |
+| `sensor` (diagnostics, "Diagnose Geräteinfo") | `getDeviceIdentityList` + `getDeviceVersionList` | Master identity, read once at startup: state is the location name (falls back to the model); attributes carry model, manufacturer, MAC address, UUID, location, installation details, firmware and hardware version |
 
 **Note on the uptime sensor:** it reports the master's `statisticsTotalRunTime`, which counts operating time since the last complete power interruption (cold start). Warm restarts — e.g. a configuration upload from the INNOXEL Setup software — do **not** reset it, so it can show more days than the "runtime" visible in INNOXEL Setup after an upload. The SOAP protocol exposes no time-since-last-boot value.
 
@@ -38,11 +39,15 @@ All entity names, room labels, and channel descriptions are read live from your 
 
 ### Entity ids
 
-Entity ids do not depend on your Home Assistant language. Switches, covers and dimmers take their object id from the channel's module address plus its name in the Innoxel configuration: an OutModule switch channel named `Kitchen light` on module 1, channel 3 becomes `switch.o01_3_kitchen_light`; a cover pair becomes `cover.o02_k0_<name>` (the up channel's name without its ` auf` suffix); a dimmer channel becomes `light.d01_2_<name>`. Every other entity carries the `innoxel_` prefix and an address instead of a name — `binary_sensor.innoxel_o45_2` (physical output status), `switch.innoxel_ts_<n>` (time switch), `climate.innoxel_rc00` with `sensor.innoxel_rc00_temp` / `sensor.innoxel_rc00_setpoint` and `number.innoxel_rc00_night_setback` (room climate), `sensor.innoxel_weather_temperature`, `sensor.innoxel_diag_uptime_days`, `cover.innoxel_b01_0` (Motor G2). The id is derived once, when the entity is first created: renaming a channel in INNOXEL Setup later updates the displayed name but keeps the id, and any entity can be renamed in its settings at any time.
+Entity ids do not depend on your Home Assistant language. Home Assistant's entity registry generates every object id from the entity's name, which the integration builds from the module address plus the channel name in your Innoxel configuration (switches, covers, dimmers, output status, Motor G2 blinds) or from a fixed label (weather station, room climate, time switches, diagnostics). On a fresh installation: an OutModule switch channel named `Kitchen light` on module 1, channel 3 becomes `switch.o01_3_kitchen_light`; a cover pair becomes `cover.o02_k0_<name>` (the up channel's name without its ` auf` suffix); a dimmer channel becomes `light.d01_2_<name>`; a physical output status becomes `binary_sensor.o45_2_<name>`; a Motor G2 blind becomes `cover.b01_0_<name>`; room climate entities become `climate.raumklima_1`, `sensor.raumklima_1_ist_temp`, `sensor.raumklima_1_soll_temp` and `number.raumklima_1_nachtabsenkung`; weather and diagnostics entities become e.g. `sensor.wetterstation_temperatur`, `binary_sensor.wetterstation_regen`, `sensor.diagnose_uptime` and `binary_sensor.diagnose_can1_versorgung`; a time switch takes its name from the Innoxel configuration. The id is derived once, when the entity is first created: renaming a channel in INNOXEL Setup later updates the displayed name but keeps the id, and any entity can be renamed in its settings at any time.
+
+Installations set up with version 1.5.x or older keep the ids they already have (`sensor.innoxel_weather_temperature`, `climate.innoxel_rc00`, `sensor.innoxel_diag_uptime_days`, `switch.innoxel_ts_0`, `cover.innoxel_b01_0`, ...): the entity registry owns them, and the unique ids they are keyed on have not changed. Entity names are unchanged as well.
 
 ## Options
 
 The **Configure** dialog (**Settings → Devices & Services → Innoxel Master 3 → Configure**) shows the connection settings — IP address, port, username, password — pre-filled, so you can review or change them at any time after setup, e.g. after changing the Innoxel user's password or the master's IP address. Changes are verified against the device before being applied; the integration then reloads automatically.
+
+If the master rejects the stored credentials (for example after the password was changed on the master first), the integration stops polling and Home Assistant shows a **Re-authenticate** prompt on the integration card. Enter the current username and password there — they are verified against the master, stored, and the integration reloads. Nothing else needs to be re-added.
 
 Cooling controls (cooling setpoint, cooling night/absence setbacks) are **off by default**, since most Innoxel installations only heat. Enable them in the setup dialog or later via the same Configure dialog — the entities appear/disappear automatically.
 
@@ -72,6 +77,8 @@ Discovery is tolerant: installations without G2 hardware (or with older firmware
 **This feature is experimental.** It was implemented from the INNOXEL WebApp SOAP protocol without G2 hardware available for testing. In particular the position scale direction (raw `0` = fully open) is an assumption. If you own Motor G2 modules, feedback is very welcome — please [open an issue](https://github.com/prusuino/ha_innoxel_master3/issues) and mention whether position, tilt, and direction behave correctly.
 
 ## Installation
+
+Requires Home Assistant **2025.2** or newer.
 
 ### HACS (recommended)
 
@@ -104,9 +111,12 @@ All entities are attached to a single **INNOXEL Master 3** device. Its device pa
 
 ## Polling
 
-- Output/dim module state: every second (fast enough for responsive UI feedback on physical button presses elsewhere in the house)
-- Weather station, time switches, room climate: every 10 seconds
-- Hardware diagnostics (`getDeviceStateList`): every 60 seconds; a failing diagnostics call never breaks the regular state updates
+Two independent pollers talk to the master (`SCAN_INTERVAL` and `SLOW_SCAN_INTERVAL` in `const.py`):
+
+- **Fast, every second:** output, dim and Motor G2 blind module state — switches, lights, covers and output status binary sensors. Fast enough for responsive UI feedback on physical button presses elsewhere in the house.
+- **Slow, every 10 seconds:** weather station, time switches, room climate (one request per thermostat) and the hardware diagnostics (`getDeviceStateList`). The slow poll runs on its own schedule; the one-second poll never waits for it.
+
+A failing diagnostics call never breaks the other updates: weather, time switch and room climate entities keep updating. The diagnostics entities themselves (voltages, CPU temperatures, uptime, serial errors, bus supply states) show the last successful reading for up to 60 seconds (six slow polls) and then become **unavailable** instead of presenting stale values; they come back with the next successful read.
 
 The state poll also watches the master's `bootId`, which changes whenever the master loads a new configuration (e.g. an upload from the INNOXEL Setup software). When that happens, the integration reloads itself once automatically, so renamed, added, or removed channels show up in Home Assistant without a manual reload. Registry entries of deleted channels remain and can be removed by hand. While the master is unreachable, no reload is triggered — entities just become unavailable until it returns.
 

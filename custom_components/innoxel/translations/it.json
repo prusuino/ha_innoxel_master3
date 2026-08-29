@@ -12,6 +12,14 @@
           "password": "Password",
           "enable_cooling": "Attiva i comandi di raffrescamento (solo se il tuo impianto raffredda attivamente)"
         }
+      },
+      "reauth_confirm": {
+        "title": "Nuova autenticazione Innoxel Master 3",
+        "description": "L'Innoxel Master 3 all'indirizzo {host} ha rifiutato le credenziali salvate. Inserisci il nome utente e la password attuali dell'utente configurato sul master.",
+        "data": {
+          "username": "Nome utente",
+          "password": "Password"
+        }
       }
     },
     "error": {
@@ -20,7 +28,8 @@
       "unknown": "Errore sconosciuto"
     },
     "abort": {
-      "already_configured": "Già configurato"
+      "already_configured": "Già configurato",
+      "reauth_successful": "Nuova autenticazione riuscita"
     }
   },
   "options": {
@@ -38,7 +47,8 @@
       }
     },
     "error": {
-      "cannot_connect": "Connessione non riuscita"
+      "cannot_connect": "Connessione non riuscita",
+      "invalid_auth": "Credenziali non valide"
     }
   }
 }
