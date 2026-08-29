@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.3 — 2026-08-29
+
+- The minimum supported Home Assistant version is now declared correctly as 2024.12.0. The options dialog has always required it (it relies on `OptionsFlow.config_entry`, which older versions do not provide), but `hacs.json` still claimed 2024.1.0, where the dialog would have failed. No functional changes.
+
 ## 1.5.2 — 2026-08-14
 
 - **Fixed the weather station fault sensor** (`binary_sensor` "Wetterstation
