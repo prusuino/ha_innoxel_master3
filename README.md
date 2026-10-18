@@ -140,6 +140,16 @@ INNOXEL Master 3."). If your installer set up the system without giving you an
 administrator login, ask for one; it is needed for any external system, not only
 for Home Assistant.
 
+**Which login does a new or untouched master have?**
+The factory default is documented in the Master 3 user manual, chapter 2.4
+step 2 (page 8) and chapter 3.1 (page 14): username `administrator`, password
+`password`. The manual asks you to change it at first commissioning (chapter 3,
+page 13: "Wir empfehlen dringend, das werkseitig eingestellte Standardpasswort
+zu ändern, sobald Sie Ihren INNOXEL Master 3 erstmals in Betrieb nehmen"). If
+nobody did, log in at `http://<ip>:<port>/webmaintenance.html` with these
+credentials, set your own administrator password and create a normal user for
+Home Assistant.
+
 **The installer refuses to hand over the administrator password.**
 The manual describes an owner-side recovery (chapter 3.2 "Notverfahren für den
 Fall eines Passwortverlustes", pages 16–17): hold the *T2* button on the master
