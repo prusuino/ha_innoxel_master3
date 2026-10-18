@@ -109,6 +109,56 @@ Home Assistant discovers an Innoxel Master 3 on your network automatically (SSDP
 
 All entities are attached to a single **INNOXEL Master 3** device. Its device page groups them into Controls / Sensors / Diagnostic sections and shows the model, firmware and hardware versions, MAC address, serial number and a link to the master's web interface.
 
+## FAQ: access to the Master 3
+
+**The integration does not find the master, or port 5001 is closed.**
+The HTML port of the Master 3 is always enabled; it cannot be switched off, only
+its number can be changed (factory default 5001). Source: *Master 3
+Benutzerdokumentation*, chapter 2.4 step 6, page 9, maintenance page *Netzwerk →
+Dienste*: "HTML-Port: 5001 (immer aktiviert), UPnP-Port: 5002 (deaktiviert),
+MOXA-Port: 5003 (aktiviert)". If a port scan shows 5001 closed, the installer has
+moved the port to another number, or a firewall or VLAN sits between Home
+Assistant and the master. The current port is shown on the master's display,
+which cycles through the IP address and the HTML, UPnP and MOXA port numbers
+(same manual, chapter 1.2, page 4). Enter that port in the setup dialog.
+Automatic discovery uses UPnP/SSDP and only works in the same network segment.
+
+**I have no login for the master.**
+The integration needs a normal user account on the Master 3, not an administrator.
+Accounts are managed on the maintenance page *Benutzer* of the master's web
+interface (`http://<ip>:<port>/maintenance/users.html`), which requires an
+administrator login (manual, chapter 3.1 "Benutzerrechte erfassen und
+verwalten", page 14). Password protection cannot be disabled and also covers the
+SOAP interface (chapter 3 "Passwortschutz", page 13: "Der Passwortschutz ist
+auch für sämtliche Prozeduren des SOAP-Interfaces aktiv"). This is the
+manufacturer's standard way of connecting third-party systems: Innoxel's own
+RTI-IP driver (`INNOXEL-RTI-IP-Treiber-1.11.0.rtidriver`, section *Connection*)
+uses the same HTML port ("IP Port, default 5001: Port number of the INNOXEL
+Master 3 HTML port (1024...65535)") and explicitly asks for a non-administrator
+account ("Important: Do not use a administrator username to connect to the
+INNOXEL Master 3."). If your installer set up the system without giving you an
+administrator login, ask for one; it is needed for any external system, not only
+for Home Assistant.
+
+**The installer refuses to hand over the administrator password.**
+The manual describes an owner-side recovery (chapter 3.2 "Notverfahren für den
+Fall eines Passwortverlustes", pages 16–17): hold the *T2* button on the master
+for about 10 seconds until the display shows "Rescue code: …", send that code to
+ZidaTech AG, and you receive a temporary password for the user `rescue` (valid
+for 24 operating hours) with which you can set a new administrator password on
+the *Benutzer* page. The procedure requires physical access to the device, so
+only the owner can start it.
+
+**Sources**
+- INNOXEL Master 3 Benutzerdokumentation, Rev. 1.9, 18 May 2020 (document
+  `INNOXEL_Master_3_User_Manual_Rev_1_9`), ZidaTech AG:
+  https://www.innoxel.ch/wp-content/uploads/Master-3-Benutzerdokumentation.pdf
+  (listed at https://www.innoxel.ch/datenblaetter-schemas-anleitungen/)
+- INNOXEL RTI-IP driver 1.11.0, contained in the public package
+  "INNOXEL System 14.101 / 1.11.0" (Setup Komfort, Master 3 firmware, RTI-IP
+  driver): https://www.innoxel.ch/wp-content/uploads/INNOXEL_System_14.101_1.11.0.zip
+  (listed at https://www.innoxel.ch/software/)
+
 ## Polling
 
 Two independent pollers talk to the master (`SCAN_INTERVAL` and `SLOW_SCAN_INTERVAL` in `const.py`):
