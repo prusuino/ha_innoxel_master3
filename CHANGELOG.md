@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.6.1 — 2026-10-18
+
+- **Fixed: the options dialog no longer shows the stored password.** *Configure*
+  on the integration card used to pre-fill the password into a plain text
+  field, so anyone opening the dialog could read it. The field is now a masked
+  password input that starts empty; leave it empty to keep the stored password,
+  or type a new one to change it. The setup and re-authentication dialogs mask
+  the password as well. Nothing else changes.
+
 ## 1.6.0 — 2026-08-29
 
 Addresses the review feedback from the HACS default-repository submission.

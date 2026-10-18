@@ -43,6 +43,9 @@
           "username": "Benutzername",
           "password": "Passwort",
           "enable_cooling": "Kühlfunktionen aktivieren (nur wenn deine Anlage aktiv kühlt)"
+        },
+        "data_description": {
+          "password": "Leer lassen, um das gespeicherte Passwort zu behalten."
         }
       }
     },

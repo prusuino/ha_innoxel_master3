@@ -43,6 +43,9 @@
           "username": "Nome utente",
           "password": "Password",
           "enable_cooling": "Attiva i comandi di raffrescamento (solo se il tuo impianto raffredda attivamente)"
+        },
+        "data_description": {
+          "password": "Lasciare vuoto per mantenere la password salvata."
         }
       }
     },

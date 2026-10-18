@@ -6,10 +6,19 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
 from homeassistant.core import callback
+from homeassistant.helpers.selector import (
+    TextSelector,
+    TextSelectorConfig,
+    TextSelectorType,
+)
 from homeassistant.helpers.service_info.ssdp import SsdpServiceInfo
 
 from .const import CONF_ENABLE_COOLING, DEFAULT_PORT, DOMAIN
 from .soap_client import InnoxelAuthError, InnoxelSoapClient
+
+# Password fields are masked in the dialogs; the options dialog never
+# pre-fills the stored password (leaving the field empty keeps it).
+_PASSWORD_SELECTOR = TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD))
 
 
 async def _async_validate(host: str, port: int, username: str, password: str) -> str | None:
@@ -87,7 +96,7 @@ class InnoxelConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_HOST, default=self._discovered_host or vol.UNDEFINED): str,
                 vol.Optional(CONF_PORT, default=self._discovered_port): int,
                 vol.Required(CONF_USERNAME): str,
-                vol.Required(CONF_PASSWORD): str,
+                vol.Required(CONF_PASSWORD): _PASSWORD_SELECTOR,
                 vol.Optional(CONF_ENABLE_COOLING, default=False): bool,
             }
         )
@@ -126,7 +135,7 @@ class InnoxelConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         schema = vol.Schema(
             {
                 vol.Required(CONF_USERNAME, default=entry.data.get(CONF_USERNAME, "")): str,
-                vol.Required(CONF_PASSWORD): str,
+                vol.Required(CONF_PASSWORD): _PASSWORD_SELECTOR,
             }
         )
         return self.async_show_form(
@@ -149,7 +158,7 @@ class InnoxelOptionsFlow(config_entries.OptionsFlow):
                 CONF_HOST: user_input[CONF_HOST],
                 CONF_PORT: user_input[CONF_PORT],
                 CONF_USERNAME: user_input[CONF_USERNAME],
-                CONF_PASSWORD: user_input[CONF_PASSWORD],
+                CONF_PASSWORD: user_input.get(CONF_PASSWORD) or entry.data[CONF_PASSWORD],
             }
             error = await _async_validate(
                 connection[CONF_HOST],
@@ -183,7 +192,7 @@ class InnoxelOptionsFlow(config_entries.OptionsFlow):
                 vol.Required(CONF_HOST, default=source.get(CONF_HOST, "")): str,
                 vol.Optional(CONF_PORT, default=source.get(CONF_PORT, DEFAULT_PORT)): int,
                 vol.Required(CONF_USERNAME, default=source.get(CONF_USERNAME, "")): str,
-                vol.Required(CONF_PASSWORD, default=source.get(CONF_PASSWORD, "")): str,
+                vol.Optional(CONF_PASSWORD, default=""): _PASSWORD_SELECTOR,
                 vol.Optional(CONF_ENABLE_COOLING, default=cooling): bool,
             }
         )

@@ -43,6 +43,9 @@
           "username": "Nom d'utilisateur",
           "password": "Mot de passe",
           "enable_cooling": "Activer les commandes de refroidissement (uniquement si votre installation refroidit activement)"
+        },
+        "data_description": {
+          "password": "Laisser vide pour conserver le mot de passe enregistré."
         }
       }
     },

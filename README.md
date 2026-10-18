@@ -45,7 +45,7 @@ Installations set up with version 1.5.x or older keep the ids they already have 
 
 ## Options
 
-The **Configure** dialog (**Settings → Devices & Services → Innoxel Master 3 → Configure**) shows the connection settings — IP address, port, username, password — pre-filled, so you can review or change them at any time after setup, e.g. after changing the Innoxel user's password or the master's IP address. Changes are verified against the device before being applied; the integration then reloads automatically.
+The **Configure** dialog (**Settings → Devices & Services → Innoxel Master 3 → Configure**) shows the connection settings — IP address, port and username pre-filled, the password field empty — so you can review or change them at any time after setup, e.g. after changing the Innoxel user's password or the master's IP address. Leave the password field empty to keep the stored password. Changes are verified against the device before being applied; the integration then reloads automatically.
 
 If the master rejects the stored credentials (for example after the password was changed on the master first), the integration stops polling and Home Assistant shows a **Re-authenticate** prompt on the integration card. Enter the current username and password there — they are verified against the master, stored, and the integration reloads. Nothing else needs to be re-added.
 

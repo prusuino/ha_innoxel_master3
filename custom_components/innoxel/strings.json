@@ -43,6 +43,9 @@
           "username": "Username",
           "password": "Password",
           "enable_cooling": "Enable cooling controls (only if your system actively cools)"
+        },
+        "data_description": {
+          "password": "Leave empty to keep the stored password."
         }
       }
     },
