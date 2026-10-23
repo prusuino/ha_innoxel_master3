@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.6.2 — 2026-10-23
+
+- **Fixed: the climate action now follows the valve.** `hvac_action` used to
+  take the controller's `operatingState` at face value, but on the Master 3
+  that field is the *mode* (heating or cooling season) and reads "heating"
+  all winter long. A room whose set point is below the room temperature
+  therefore kept showing *Heating* on the thermostat card although its
+  valve was closed. The valve state now decides (open = heating/cooling
+  according to the mode, closed = idle); the operating state is only used
+  on firmwares that do not report a valve state. No entity ids change.
+
 ## 1.6.1 — 2026-10-18
 
 - **Fixed: the options dialog no longer shows the stored password.** *Configure*

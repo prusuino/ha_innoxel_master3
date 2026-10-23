@@ -202,9 +202,16 @@ class InnoxelSoapClient:
                             data[key] = float(el.get("value"))
                         except (TypeError, ValueError):
                             pass
-                valve = thermo.get("valveState", "")
-                data["valve_open"] = valve.lower() not in ("", "closed", "0", "false")
-                # "heating" / "cooling" / "" — firmware-reported action
+                # ``valveState`` is absent on firmwares that do not report
+                # it; keep that distinct from "closed" so the climate entity
+                # can fall back to the operating state.
+                valve = thermo.get("valveState")
+                data["valve_open"] = (
+                    None if valve is None
+                    else valve.lower() not in ("", "closed", "0", "false")
+                )
+                # "heating" / "cooling" / "" — the controller's mode
+                # (heating or cooling season), not the current demand
                 data["operating_state"] = thermo.get("operatingState", "")
                 alarm = root.find(".//u:alarmState", ns)
                 data["alarm"] = (alarm.text or "").strip() if alarm is not None else ""

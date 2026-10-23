@@ -61,16 +61,27 @@ class InnoxelRoomClimate(CoordinatorEntity, ClimateEntity):
 
     @property
     def hvac_action(self) -> HVACAction:
-        # Prefer the firmware-reported operating state; fall back to the
-        # valve state for firmwares that do not report it.
-        operating = (self._rc().get("operating_state") or "").lower()
-        if operating == "heating":
-            return HVACAction.HEATING
+        # ``operatingState`` is the room controller's *mode* (heating or
+        # cooling season), not whether energy is flowing right now: on a
+        # Master 3 it reads "heating" all winter long, even with the valve
+        # closed. The valve state is the actual demand, so it decides;
+        # the operating state only selects heating vs. cooling.
+        rc = self._rc()
+        valve_open = rc.get("valve_open")
+        if valve_open is None:
+            # Firmware without valve state: the operating state is all we have.
+            operating = (rc.get("operating_state") or "").lower()
+            if operating == "heating":
+                return HVACAction.HEATING
+            if operating == "cooling":
+                return HVACAction.COOLING
+            return HVACAction.IDLE
+        if not valve_open:
+            return HVACAction.IDLE
+        operating = (rc.get("operating_state") or "").lower()
         if operating == "cooling":
             return HVACAction.COOLING
-        if operating:
-            return HVACAction.IDLE
-        return HVACAction.HEATING if self._rc().get("valve_open") else HVACAction.IDLE
+        return HVACAction.HEATING
 
     async def async_set_temperature(self, **kwargs) -> None:
         temp = kwargs.get("temperature")
