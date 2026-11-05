@@ -2,7 +2,7 @@
 
 ![Innoxel Master 3](assets/readme_header.png)
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://github.com/hacs/integration)
+[![marketplace_badge](https://img.shields.io/badge/Marketplace-Default-41BDF5.svg)](https://hacs.xyz/docs/marketplace/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 <a href="https://www.buymeacoffee.com/prusuino"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" height="20"></a>
 
@@ -80,15 +80,15 @@ Discovery is tolerant: installations without G2 hardware (or with older firmware
 
 Requires Home Assistant **2025.2** or newer.
 
-### HACS (recommended)
+### Home Assistant Marketplace (recommended)
 
-1. Open **HACS**, search for **"Innoxel Master 3"** and download it — or use the button, which opens the integration directly in your HACS:
+1. Open **Settings → Marketplace** (Home Assistant 2026.11 or newer; on older versions open **HACS**), search for **"Innoxel Master 3"** and download it — or use the button, which opens the integration directly in your Marketplace:
 
-   [![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=prusuino&repository=ha_innoxel_master3&category=integration)
+   [![Open in Marketplace](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=prusuino&repository=ha_innoxel_master3&category=integration)
 
 2. Restart Home Assistant.
 
-The integration is listed in the HACS default store, so no custom repository is needed.
+The integration is listed in the Marketplace default catalog (formerly the HACS default store), so no custom repository is needed.
 
 ### Manual
 
