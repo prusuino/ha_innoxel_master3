@@ -78,7 +78,7 @@ Discovery is tolerant: installations without G2 hardware (or with older firmware
 
 ## Installation
 
-Requires Home Assistant **2025.2** or newer.
+Requires Home Assistant **2025.4** or newer.
 
 ### Home Assistant Marketplace (recommended)
 

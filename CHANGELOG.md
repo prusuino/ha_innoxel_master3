@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.3 — 2026-11-05
+
+- **Maintenance release for the Home Assistant Marketplace.** Home Assistant 2026.11 replaces HACS with the built-in Marketplace (Settings → Marketplace); the README now describes installation and updates through it. The release ships the integration as a zip asset, which the Marketplace (and HACS) download in one piece.
+- **Changed: the declared minimum Home Assistant version is 2025.4** (was 2025.2). The code itself needs nothing newer than before; this aligns the floor across the author's integrations to the version they are tested against.
+- No functional changes. Existing entities, their ids and your configuration are unchanged.
+
 ## 1.6.2 — 2026-10-23
 
 - **Fixed: the climate action now follows the valve.** `hvac_action` used to
