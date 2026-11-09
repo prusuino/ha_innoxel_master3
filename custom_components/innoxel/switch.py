@@ -17,7 +17,7 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    data = hass.data[DOMAIN][entry.entry_id]
+    data = entry.runtime_data
     coordinator = data["coordinator"]  # fast: output module state
     slow = data["slow_coordinator"]  # time switch states
     client = data["client"]

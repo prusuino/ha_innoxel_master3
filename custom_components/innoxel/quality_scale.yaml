@@ -1,0 +1,86 @@
+rules:
+  # Bronze
+  action-setup:
+    status: exempt
+    comment: The integration has no actions.
+  appropriate-polling:
+    status: done
+    comment: Output state every second (the master answers locally in milliseconds), weather, time switches and room climate every 10 seconds.
+  brands: done
+  common-modules:
+    status: done
+    comment: soap_client.py holds the SOAP access, the coordinators live in __init__.py.
+  config-flow: done
+  config-flow-test-coverage: done
+  dependency-transparency:
+    status: done
+    comment: No requirements; SOAP over the standard library.
+  docs-actions:
+    status: exempt
+    comment: No actions.
+  docs-high-level-description: done
+  docs-installation-instructions: done
+  docs-removal-instructions: done
+  entity-event-setup: done
+  entity-unique-id: done
+  has-entity-name: done
+  runtime-data:
+    status: done
+    comment: The coordinators and the client are entry.runtime_data.
+  test-before-configure: done
+  test-before-setup: done
+  unique-config-entry:
+    status: done
+    comment: Keyed by the master's UPnP UDN when discovered, by host otherwise.
+
+  # Silver
+  action-exceptions:
+    status: exempt
+    comment: No actions.
+  config-entry-unloading: done
+  docs-configuration-parameters: done
+  docs-installation-parameters: done
+  entity-unavailable: done
+  integration-owner: done
+  log-when-unavailable: done
+  parallel-updates: todo
+  reauthentication-flow: done
+  test-coverage: todo
+
+  # Gold
+  devices: done
+  diagnostics: todo
+  discovery:
+    status: done
+    comment: SSDP, the master announces itself as an UPnP device.
+  discovery-update-info:
+    status: done
+    comment: A rediscovered master updates the stored host.
+  docs-data-update: done
+  docs-examples: done
+  docs-known-limitations: done
+  docs-supported-devices: done
+  docs-supported-functions: done
+  docs-troubleshooting: done
+  docs-use-cases: done
+  dynamic-devices: todo
+  entity-category: done
+  entity-device-class: done
+  entity-disabled-by-default: todo
+  entity-translations: todo
+  exception-translations: todo
+  icon-translations: todo
+  reconfiguration-flow:
+    status: exempt
+    comment: Host, port and credentials are options of the entry (Configure); rejected credentials start the reauth flow.
+  repair-issues: todo
+  stale-devices: todo
+
+  # Platinum
+  async-dependency:
+    status: done
+    comment: The blocking SOAP calls run in the executor.
+  inject-websession:
+    status: exempt
+    comment: The master speaks SOAP with digest authentication over the standard library, not aiohttp.
+  strict-typing: todo

@@ -1,5 +1,6 @@
 from datetime import timedelta
 import logging
+from typing import Any
 import re
 import time
 import unicodedata
@@ -23,6 +24,10 @@ from .soap_client import InnoxelAuthError, InnoxelClientClosed, InnoxelSoapClien
 
 _LOGGER = logging.getLogger(__name__)
 PLATFORMS = ["binary_sensor", "climate", "cover", "light", "number", "sensor", "switch"]
+
+# Per-entry runtime data: the two coordinators and the SOAP client, read by
+# every platform as entry.runtime_data["coordinator" | "slow_coordinator" | "client"].
+type InnoxelConfigEntry = ConfigEntry[dict[str, Any]]
 
 
 def _normalize_tokens(name: str) -> list[str]:
@@ -52,7 +57,7 @@ def _fuzzy_match(out_base: str, in_base: str) -> float:
     return matched / len(out_tokens)
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_setup_entry(hass: HomeAssistant, entry: InnoxelConfigEntry) -> bool:
     client = InnoxelSoapClient(
         entry.data[CONF_HOST],
         entry.data[CONF_PORT],
@@ -71,7 +76,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # do not leave the worker threads of this attempt behind.
         await client.close()
         raise
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
+    entry.runtime_data = {
         "coordinator": coordinator,
         "slow_coordinator": slow_coordinator,
         "client": client,
@@ -86,14 +91,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return True
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_unload_entry(hass: HomeAssistant, entry: InnoxelConfigEntry) -> bool:
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
-        data = hass.data[DOMAIN].pop(entry.entry_id)
+        data = entry.runtime_data
         await data["coordinator"].async_shutdown()
         await data["slow_coordinator"].async_shutdown()
         await data["client"].close()
-        if not hass.data[DOMAIN]:
-            hass.data.pop(DOMAIN)
     return unload_ok
 
 

@@ -42,7 +42,7 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    data = hass.data[DOMAIN][entry.entry_id]
+    data = entry.runtime_data
     coordinator = data["coordinator"]  # identity: which room climate modules exist
     slow = data["slow_coordinator"]  # data source of every sensor in this platform
     entities: list = [

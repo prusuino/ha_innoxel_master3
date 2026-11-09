@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.7.0 — 2026-11-09
+
+- **Quality scale Bronze.** The integration keeps its coordinators and SOAP client in the config entry's runtime data, the README gained removal instructions and a quality-scale section, and the manifest declares the **bronze** tier. A test suite (config flow with credential check, rejected credentials, unreachable master, duplicate host, SSDP discovery and re-authentication; the output-to-input channel name matching) runs on every push. No change to entities or configuration.
+
 ## 1.6.3 — 2026-11-05
 
 - **Maintenance release for the Home Assistant Marketplace.** Home Assistant 2026.11 replaces HACS with the built-in Marketplace (Settings → Marketplace); the README now describes installation and updates through it. The release ships the integration as a zip asset, which the Marketplace (and HACS) download in one piece.
