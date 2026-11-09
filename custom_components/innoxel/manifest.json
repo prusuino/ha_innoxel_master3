@@ -10,5 +10,5 @@
   "quality_scale": "bronze",
   "requirements": [],
   "ssdp": [{ "deviceType": "urn:schemas-upnp-org:device:InnoxelMaster:1" }],
-  "version": "1.8.0"
+  "version": "1.8.1"
 }

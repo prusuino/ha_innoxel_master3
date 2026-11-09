@@ -14,6 +14,12 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 
+# Home Assistant 2026.11 moved the climate temperatures to ``native_*``
+# properties (the core converts them into the user's unit system) and
+# deprecates the old names for 2027.11. Older releases only know the old
+# names, so the entity declares whichever set the running core expects.
+_NATIVE_TEMPERATURES = hasattr(ClimateEntity, "native_current_temperature")
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -35,7 +41,10 @@ class InnoxelRoomClimate(CoordinatorEntity, ClimateEntity):
     _attr_hvac_modes = [HVACMode.HEAT]
     _attr_hvac_mode = HVACMode.HEAT
     _attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE
-    _attr_temperature_unit = UnitOfTemperature.CELSIUS
+    if _NATIVE_TEMPERATURES:
+        _attr_native_temperature_unit = UnitOfTemperature.CELSIUS
+    else:
+        _attr_temperature_unit = UnitOfTemperature.CELSIUS
     _attr_min_temp = 5.0
     _attr_max_temp = 28.0
     _attr_target_temperature_step = 0.5
@@ -51,13 +60,18 @@ class InnoxelRoomClimate(CoordinatorEntity, ClimateEntity):
     def _rc(self) -> dict:
         return (self.coordinator.data or {}).get("roomclimate", {}).get(self._idx, {})
 
-    @property
-    def current_temperature(self) -> float | None:
+    def _current_temperature(self) -> float | None:
         return self._rc().get("actual_temp")
 
-    @property
-    def target_temperature(self) -> float | None:
+    def _target_temperature(self) -> float | None:
         return self._rc().get("set_temp")
+
+    if _NATIVE_TEMPERATURES:
+        native_current_temperature = property(_current_temperature)
+        native_target_temperature = property(_target_temperature)
+    else:
+        current_temperature = property(_current_temperature)
+        target_temperature = property(_target_temperature)
 
     @property
     def hvac_action(self) -> HVACAction:

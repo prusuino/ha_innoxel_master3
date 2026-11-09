@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.8.1 — 2026-11-09
+
+- **Climate entities on the new Home Assistant API.** Room temperatures are reported through the `native_*` properties introduced in Home Assistant 2026.11, which removes the three deprecation warnings at start-up; older Home Assistant releases keep working with the previous names.
+
 ## 1.8.0 — 2026-11-09
 
 - **Repair notice.** A master that has not answered for about half a minute raises a notice under Settings → Repairs; it withdraws itself with the next successful poll. No change to entities or configuration.
