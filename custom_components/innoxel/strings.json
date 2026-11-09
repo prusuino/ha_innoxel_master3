@@ -53,5 +53,11 @@
       "cannot_connect": "Failed to connect",
       "invalid_auth": "Invalid credentials"
     }
+  },
+  "issues": {
+    "unreachable": {
+      "title": "Innoxel Master 3: master unreachable",
+      "description": "The Innoxel master at {host} has not answered for about half a minute. Check that the master is powered and reachable on the network, and that its web server port is still the configured one. Switches, lights and covers stay unavailable until then and recover on their own; this notice disappears with the next successful poll."
+    }
   }
 }

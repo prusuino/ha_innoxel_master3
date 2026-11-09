@@ -53,5 +53,11 @@
       "cannot_connect": "Échec de la connexion",
       "invalid_auth": "Identifiants invalides"
     }
+  },
+  "issues": {
+    "unreachable": {
+      "title": "Innoxel Master 3 : master injoignable",
+      "description": "Le master Innoxel à l'adresse {host} ne répond plus depuis environ une demi-minute. Vérifie que le master est alimenté et joignable sur le réseau, et que le port de son serveur web est toujours celui configuré. Interrupteurs, lumières et stores restent indisponibles jusque-là et se rétablissent d'eux-mêmes ; cet avis disparaît à la prochaine interrogation réussie."
+    }
   }
 }

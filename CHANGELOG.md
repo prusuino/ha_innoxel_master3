@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.8.0 — 2026-11-09
+
+- **Repair notice.** A master that has not answered for about half a minute raises a notice under Settings → Repairs; it withdraws itself with the next successful poll. No change to entities or configuration.
+
 ## 1.7.0 — 2026-11-09
 
 - **Quality scale Bronze.** The integration keeps its coordinators and SOAP client in the config entry's runtime data, the README gained removal instructions and a quality-scale section, and the manifest declares the **bronze** tier. A test suite (config flow with credential check, rejected credentials, unreachable master, duplicate host, SSDP discovery and re-authentication; the output-to-input channel name matching) runs on every push. No change to entities or configuration.

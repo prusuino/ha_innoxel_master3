@@ -180,6 +180,10 @@ A failing diagnostics call never breaks the other updates: weather, time switch 
 
 The state poll also watches the master's `bootId`, which changes whenever the master loads a new configuration (e.g. an upload from the INNOXEL Setup software). When that happens, the integration reloads itself once automatically, so renamed, added, or removed channels show up in Home Assistant without a manual reload. Registry entries of deleted channels remain and can be removed by hand. While the master is unreachable, no reload is triggered — entities just become unavailable until it returns.
 
+## Repairs
+
+When the master has not answered the one-second poll for about half a minute, a notice appears under **Settings → Repairs** naming the host; it disappears on its own with the next successful poll. Rejected credentials start the re-authentication dialog instead.
+
 ## Removal
 
 1. **Settings → Devices & services → Innoxel Master 3**, open the entry's menu (⋮) and choose **Delete**. The entities, their history and the devices go with the entry; the master itself is not changed, it simply stops being polled.

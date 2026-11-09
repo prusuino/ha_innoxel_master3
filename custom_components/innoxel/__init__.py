@@ -20,10 +20,14 @@ from .const import (
     SLOW_SCAN_INTERVAL,
     SOAP_NS,
 )
+from .issues import IssueReporter, async_clear_entry_issues
 from .soap_client import InnoxelAuthError, InnoxelClientClosed, InnoxelSoapClient
 
 _LOGGER = logging.getLogger(__name__)
 PLATFORMS = ["binary_sensor", "climate", "cover", "light", "number", "sensor", "switch"]
+# Consecutive failed fast polls (one per second) before the master is
+# reported as unreachable under Settings > Repairs.
+UNREACHABLE_ISSUE_AFTER = 30
 
 # Per-entry runtime data: the two coordinators and the SOAP client, read by
 # every platform as entry.runtime_data["coordinator" | "slow_coordinator" | "client"].
@@ -97,6 +101,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: InnoxelConfigEntry) -> 
         await data["coordinator"].async_shutdown()
         await data["slow_coordinator"].async_shutdown()
         await data["client"].close()
+        async_clear_entry_issues(hass, entry.entry_id)
     return unload_ok
 
 
@@ -117,6 +122,8 @@ class InnoxelCoordinator(DataUpdateCoordinator):
         )
         self.client = client
         self.entry_id = entry.entry_id
+        self.issues = IssueReporter(hass, entry.entry_id, after=UNREACHABLE_ISSUE_AFTER)
+        self._host = entry.data[CONF_HOST]
         self.device_data: dict = {}
         self.module_info: dict = {}
         self.input_channel_map: dict = {}
@@ -135,11 +142,13 @@ class InnoxelCoordinator(DataUpdateCoordinator):
                 await self.client.get_state(blind_modules=list(self.blind_modules))
             )
             self._check_boot_id(state.pop("boot_id", None))
+            self.issues.clear("unreachable")
             return state
         except InnoxelAuthError as exc:
             # Starts the re-authentication flow instead of retrying forever
             raise ConfigEntryAuthFailed(f"Innoxel rejected the credentials: {exc}") from exc
         except Exception as exc:
+            self.issues.failure("unreachable", {"host": self._host})
             raise UpdateFailed(f"Innoxel update failed: {exc}") from exc
 
     def _check_boot_id(self, boot_id: str | None) -> None:

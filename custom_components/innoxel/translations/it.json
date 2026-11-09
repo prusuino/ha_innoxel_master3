@@ -53,5 +53,11 @@
       "cannot_connect": "Connessione non riuscita",
       "invalid_auth": "Credenziali non valide"
     }
+  },
+  "issues": {
+    "unreachable": {
+      "title": "Innoxel Master 3: master non raggiungibile",
+      "description": "Il master Innoxel all'indirizzo {host} non risponde da circa mezzo minuto. Controlla che il master sia alimentato e raggiungibile in rete e che la porta del suo server web sia ancora quella configurata. Interruttori, luci e tende restano non disponibili fino ad allora e si ripristinano da soli; questo avviso scompare con la prossima interrogazione riuscita."
+    }
   }
 }

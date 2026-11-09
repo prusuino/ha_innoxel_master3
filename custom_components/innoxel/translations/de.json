@@ -53,5 +53,11 @@
       "cannot_connect": "Verbindung fehlgeschlagen",
       "invalid_auth": "Ungültige Anmeldedaten"
     }
+  },
+  "issues": {
+    "unreachable": {
+      "title": "Innoxel Master 3: Master nicht erreichbar",
+      "description": "Der Innoxel-Master unter {host} hat seit etwa einer halben Minute nicht geantwortet. Prüfe, ob der Master Strom hat und im Netz erreichbar ist und ob sein Webserver-Port noch der konfigurierte ist. Schalter, Lichter und Storen bleiben bis dahin nicht verfügbar und erholen sich von selbst; dieser Hinweis verschwindet mit der nächsten erfolgreichen Abfrage."
+    }
   }
 }
