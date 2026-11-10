@@ -10,6 +10,17 @@ A native Home Assistant custom integration for the **Innoxel Master 3** home aut
 
 > This is an independent, community-built integration. It is **not affiliated with or endorsed by Innoxel**, and does not use any Innoxel trademarks or branding.
 
+## Highlights
+
+- **Local and direct**: talks SOAP to the master on your own network — no cloud, no MQTT bridge, no extra gateway.
+- **Nothing to map by hand**: channels, names and rooms are read from the master's own configuration, and a new upload from the INNOXEL Setup software is picked up automatically.
+- **Blinds that travel all the way**: a cover triggers the matching virtual input channel, so one command is a full run to the end position instead of a short jog; Motor G2 blinds with position and tilt are supported experimentally.
+- **Switches, time switches and dimmers**: outputs are polled every second, everything else every ten seconds.
+- **Room climate**: a climate entity per room, the setback temperatures as numbers, optional cooling.
+- **Weather station and master diagnostics**: temperature, wind, sun brightness east/south/west, twilight and rain, plus the master's voltages, CPU temperatures and uptime.
+- **Stable entity ids**: the same in every Home Assistant language.
+- **Set up in a minute**: the master is found on the network (SSDP), you only add the credentials; a re-authentication prompt when they change; German, English, French and Italian.
+
 ## Why this exists
 
 The Innoxel Master 3 only exposes a SOAP interface and has no official Home Assistant integration. This project talks to that SOAP API directly and maps your configured modules (covers, switches, dimmers, sensors, room climate, time switches) to native Home Assistant entities — automatically, based on how you've already named and described things in your Innoxel configuration. No YAML mapping, no manual entity setup.
