@@ -1,6 +1,7 @@
 {
   "domain": "innoxel",
   "name": "Innoxel Master 3",
+  "categories": ["hubs_protocols.building_automation", "blinds_curtains", "lighting"],
   "codeowners": ["@prusuino"],
   "config_flow": true,
   "documentation": "https://github.com/prusuino/ha_innoxel_master3",
@@ -10,5 +11,5 @@
   "quality_scale": "bronze",
   "requirements": [],
   "ssdp": [{ "deviceType": "urn:schemas-upnp-org:device:InnoxelMaster:1" }],
-  "version": "1.8.1"
+  "version": "1.8.2"
 }

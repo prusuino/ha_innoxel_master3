@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.8.2 — 2026-11-19
+
+- The Home Assistant Marketplace lists the integration under *Hubs & protocols → Building automation*, *Blinds & curtains* and *Lighting*. Nothing changes in how the integration works.
+
 ## 1.8.1 — 2026-11-09
 
 - **Climate entities on the new Home Assistant API.** Room temperatures are reported through the `native_*` properties introduced in Home Assistant 2026.11, which removes the three deprecation warnings at start-up; older Home Assistant releases keep working with the previous names.
