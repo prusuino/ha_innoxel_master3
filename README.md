@@ -3,7 +3,7 @@
 ![Innoxel Master 3](assets/readme_header.png)
 
 [![marketplace_badge](https://img.shields.io/badge/Marketplace-Default-41BDF5.svg)](https://hacs.xyz/docs/marketplace/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/prusuino/ha_innoxel_master3)](https://github.com/prusuino/ha_innoxel_master3/releases)
 [![Validate](https://github.com/prusuino/ha_innoxel_master3/actions/workflows/validate.yml/badge.svg)](https://github.com/prusuino/ha_innoxel_master3/actions/workflows/validate.yml)
 [![Tests](https://github.com/prusuino/ha_innoxel_master3/actions/workflows/tests.yml/badge.svg)](https://github.com/prusuino/ha_innoxel_master3/actions/workflows/tests.yml)
@@ -220,7 +220,9 @@ This integration is provided **as-is, without any warranty**. It controls real h
 
 ## License
 
-MIT — see [LICENSE](LICENSE). Not affiliated with Innoxel.
+Copyright (C) 2026 prusuino
+
+Source code: GNU General Public License v3.0 (GPL-3.0) — see [LICENSE](LICENSE). You may use, change and share it; if you pass it on, changed or built into something else, that has to be under the same licence and with its source code. It comes without any warranty. Not affiliated with Innoxel.
 
 ## Related integrations
 

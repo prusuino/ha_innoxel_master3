@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **Licence.** The source code is now under the GNU General Public License v3.0 (GPL-3.0). Versions up to and including 1.8.3 stay under the MIT License they were published with.
+
 ## 1.8.3 — 2026-11-22
 
 - **Half the requests to the master.** The master asks every request for a login (HTTP digest). Until now the integration started that login anew each time: one request that was refused, then the same request again with the credentials. It now keeps the master's challenge and sends the credentials right away, so a request is a single round trip; only the first one, and one after the master has dropped the challenge, still take two. With the state poll once a second this halves the load on the master's web server. Nothing changes in what the integration reads or switches.
