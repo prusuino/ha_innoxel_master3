@@ -1,7 +1,8 @@
 # Changelog
 
-## Unreleased
+## 1.9.0 — 2026-11-22
 
+- **Diagnostics download.** The entry's menu under *Settings → Devices & services* offers *Download diagnostics*: the versions of the master, the modules and channels read from its configuration, how covers were matched to their virtual input channels, what the two polls last returned and the entities with their current state. Host, user name, password, MAC address, UUID and the location stored in the master are redacted. The bug report form asks for the file.
 - **Licence.** The source code is now under the GNU General Public License v3.0 (GPL-3.0). Versions up to and including 1.8.3 stay under the MIT License they were published with.
 
 ## 1.8.3 — 2026-11-22

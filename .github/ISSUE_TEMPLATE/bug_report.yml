@@ -18,7 +18,7 @@ body:
     attributes:
       label: Version of Innoxel Master 3
       description: Settings → Devices & services → Innoxel Master 3, or the Marketplace / HACS entry.
-      placeholder: "1.8.2"
+      placeholder: "1.9.0"
     validations:
       required: true
   - type: input
@@ -29,6 +29,11 @@ body:
       placeholder: "2026.11.2"
     validations:
       required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: Settings → Devices & services → Innoxel Master 3 → ⋮ → Download diagnostics. Drag the file in here. Address, credentials and the identity of the master are redacted in it; the names of your channels are not.
   - type: textarea
     id: log
     attributes:

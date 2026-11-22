@@ -200,6 +200,10 @@ The state poll also watches the master's `bootId`, which changes whenever the ma
 
 When the master has not answered the one-second poll for about half a minute, a notice appears under **Settings → Repairs** naming the host; it disappears on its own with the next successful poll. Rejected credentials start the re-authentication dialog instead.
 
+## Diagnostics
+
+**Download diagnostics** in the entry's menu (⋮) under **Settings → Devices & services → Innoxel Master 3** gives one file with the versions of the master, the modules and channels read from its configuration, how covers were matched to their virtual input channels, what the two polls last returned, and the entities with their current state. Host, user name, password, MAC address, UUID and the location stored in the master are redacted; the names of your modules and channels stay readable. Attach the file to a bug report.
+
 ## Removal
 
 1. **Settings → Devices & services → Innoxel Master 3**, open the entry's menu (⋮) and choose **Delete**. The entities, their history and the devices go with the entry; the master itself is not changed, it simply stops being polled.
