@@ -1,7 +1,11 @@
 import asyncio
 import functools
+import hashlib
 import logging
+import os
+import threading
 import urllib.error
+import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from xml.etree import ElementTree as ET
@@ -26,7 +30,91 @@ class InnoxelClientClosed(RuntimeError):
     """A request was made after close(), i.e. while the config entry unloads."""
 
 
-def _sync_soap_call(url: str, username: str, password: str, action: str, body: str) -> str:
+_HASHES = {"MD5": hashlib.md5, "SHA-256": hashlib.sha256}
+
+# No handlers that answer a 401 on their own: the digest handshake is done
+# here, so that the challenge can be kept for the next request.
+_OPENER = urllib.request.build_opener()
+
+
+class _DigestAuth:
+    """HTTP digest credentials for one master, kept between requests.
+
+    The master answers a request without credentials with HTTP 401 and a
+    challenge (realm, nonce). The challenge stays valid for further requests,
+    each with a higher nonce count, so only the first request and one after
+    the master has dropped the nonce cost a second round trip.
+    """
+
+    def __init__(self, username: str, password: str) -> None:
+        self._username = username
+        self._password = password
+        self._lock = threading.Lock()
+        self._challenge: dict[str, str] | None = None
+        self._nc = 0
+
+    def update(self, www_authenticate: str | None) -> bool:
+        """Take the challenge of a 401 answer. False if it is not a usable digest challenge."""
+        scheme, _, params = (www_authenticate or "").strip().partition(" ")
+        if scheme.lower() != "digest":
+            return False
+        try:
+            challenge = urllib.request.parse_keqv_list(urllib.request.parse_http_list(params))
+        except (ValueError, IndexError):
+            return False
+        challenge = {key.lower(): value for key, value in challenge.items()}
+        algorithm = challenge.get("algorithm", "MD5").upper()
+        if not challenge.get("nonce") or algorithm.removesuffix("-SESS") not in _HASHES:
+            return False
+        with self._lock:
+            self._challenge = challenge
+            self._nc = 0
+        return True
+
+    def header(self, method: str, uri: str) -> str | None:
+        """Authorization header for the next request, None before the first challenge."""
+        with self._lock:
+            challenge = self._challenge
+            if challenge is None:
+                return None
+            self._nc += 1
+            nc = f"{self._nc:08x}"
+
+        algorithm = challenge.get("algorithm", "MD5")
+        digest = _HASHES[algorithm.upper().removesuffix("-SESS")]
+
+        def h(text: str) -> str:
+            return digest(text.encode("utf-8")).hexdigest()
+
+        realm = challenge.get("realm", "")
+        nonce = challenge["nonce"]
+        cnonce = os.urandom(8).hex()
+        ha1 = h(f"{self._username}:{realm}:{self._password}")
+        if algorithm.upper().endswith("-SESS"):
+            ha1 = h(f"{ha1}:{nonce}:{cnonce}")
+        ha2 = h(f"{method}:{uri}")
+        qop_auth = "auth" in [q.strip() for q in challenge.get("qop", "").split(",")]
+        if qop_auth:
+            response = h(f"{ha1}:{nonce}:{nc}:{cnonce}:auth:{ha2}")
+        else:
+            response = h(f"{ha1}:{nonce}:{ha2}")
+
+        parts = [
+            f'username="{self._username}"',
+            f'realm="{realm}"',
+            f'nonce="{nonce}"',
+            f'uri="{uri}"',
+            f"algorithm={algorithm}",
+            f'response="{response}"',
+        ]
+        if challenge.get("opaque"):
+            parts.append(f'opaque="{challenge["opaque"]}"')
+        if qop_auth:
+            parts += ["qop=auth", f"nc={nc}", f'cnonce="{cnonce}"']
+        return "Digest " + ", ".join(parts)
+
+
+def _sync_soap_call(url: str, auth: _DigestAuth, action: str, body: str) -> str:
     soap = (
         '<?xml version="1.0" encoding="utf-8"?>'
         '<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"'
@@ -35,37 +123,46 @@ def _sync_soap_call(url: str, username: str, password: str, action: str, body: s
         f'<u:{action} xmlns:u="{SOAP_NS}">{body}</u:{action}>'
         "</s:Body></s:Envelope>"
     ).encode("utf-8")
+    uri = urllib.parse.urlsplit(url).path or "/"
 
-    pm = urllib.request.HTTPPasswordMgrWithDefaultRealm()
-    base = url.rsplit("/", 1)[0] + "/"
-    pm.add_password(None, base, username, password)
-    opener = urllib.request.build_opener(urllib.request.HTTPDigestAuthHandler(pm))
-    req = urllib.request.Request(url, data=soap, method="POST")
-    req.add_header("Content-Type", 'text/xml; charset="utf-8"')
-    req.add_header("soapaction", f"{SOAP_NS}#{action}")
     _LOGGER.debug("SOAP %s", action)
-    try:
-        with opener.open(req, timeout=_REQUEST_TIMEOUT) as r:
-            result = r.read().decode("utf-8", errors="replace")
-            _LOGGER.debug("SOAP %s -> HTTP %s, body=%s", action, r.status, result[:80])
-            return result
-    except urllib.error.HTTPError as exc:
-        if exc.code == 401:
-            # The digest handler has already retried; the credentials are wrong.
-            _LOGGER.error("SOAP %s rejected with HTTP 401: invalid username or password", action)
-            raise InnoxelAuthError(f"HTTP 401 on {action}") from exc
-        _LOGGER.error("SOAP %s HTTP error %s: %s", action, exc.code, exc.read(200))
-        raise
-    except Exception as exc:
-        _LOGGER.error("SOAP %s error: %s", action, exc)
-        raise
+    # At most two requests: the first with the kept challenge (or, on the very
+    # first call, without credentials), the second with the challenge of the
+    # 401 answer. A 401 to that second one means the credentials are wrong.
+    for attempt in (1, 2):
+        req = urllib.request.Request(url, data=soap, method="POST")
+        req.add_header("Content-Type", 'text/xml; charset="utf-8"')
+        req.add_header("soapaction", f"{SOAP_NS}#{action}")
+        authorization = auth.header("POST", uri)
+        if authorization:
+            req.add_header("Authorization", authorization)
+        try:
+            with _OPENER.open(req, timeout=_REQUEST_TIMEOUT) as r:
+                result = r.read().decode("utf-8", errors="replace")
+                _LOGGER.debug("SOAP %s -> HTTP %s, body=%s", action, r.status, result[:80])
+                return result
+        except urllib.error.HTTPError as exc:
+            if exc.code == 401:
+                usable = auth.update(exc.headers.get("WWW-Authenticate"))
+                exc.close()
+                if attempt == 1 and usable:
+                    continue
+                _LOGGER.error("SOAP %s rejected with HTTP 401: invalid username or password", action)
+                raise InnoxelAuthError(f"HTTP 401 on {action}") from exc
+            _LOGGER.error("SOAP %s HTTP error %s: %s", action, exc.code, exc.read(200))
+            raise
+        except Exception as exc:
+            _LOGGER.error("SOAP %s error: %s", action, exc)
+            raise
+    raise InnoxelAuthError(f"HTTP 401 on {action}")  # pragma: no cover
 
 
 class InnoxelSoapClient:
     def __init__(self, host: str, port: int, username: str, password: str) -> None:
         self._url = f"http://{host}:{port}/control"
-        self._username = username
-        self._password = password
+        # The digest challenge of the master is kept and reused, so a request
+        # normally is a single round trip instead of 401 + retry.
+        self._auth = _DigestAuth(username, password)
         # One small thread pool per client (i.e. per config entry), released
         # in close() when the entry unloads. Every request opens and closes
         # its own HTTP connection, so there is no session to keep.
@@ -78,9 +175,7 @@ class InnoxelSoapClient:
         if self._closed:
             raise InnoxelClientClosed("Innoxel SOAP client is closed")
         loop = asyncio.get_running_loop()
-        fn = functools.partial(
-            _sync_soap_call, self._url, self._username, self._password, action, body
-        )
+        fn = functools.partial(_sync_soap_call, self._url, self._auth, action, body)
         return await loop.run_in_executor(self._executor, fn)
 
     async def get_identity(self) -> str:
